@@ -19,8 +19,7 @@ def render(args):
 
 
 def get(dns_provider_id):
-    provider = database.get(DnsProvider, dns_provider_id)
-    return provider
+    return database.get(DnsProvider, dns_provider_id)
 
 
 def get_all_dns_providers():
@@ -64,8 +63,7 @@ def delete(dns_provider_id):
 
     :param dns_provider_id: Lemur assigned ID
     """
-    dns_provider = get(dns_provider_id)
-    if dns_provider:
+    if dns_provider := get(dns_provider_id):
         log_service.audit_log("delete_dns_provider", dns_provider.name, "Deleting the DNS provider")
         database.delete(dns_provider)
 
@@ -127,9 +125,11 @@ def set_domains(dns_provider, domains):
 def create(data):
     provider_name = data.get("name")
 
-    credentials = {}
-    for item in data.get("provider_type", {}).get("requirements", []):
-        credentials[item["name"]] = item["value"]
+    credentials = {
+        item["name"]: item["value"]
+        for item in data.get("provider_type", {}).get("requirements", [])
+    }
+
     dns_provider = DnsProvider(
         name=provider_name,
         description=data.get("description"),

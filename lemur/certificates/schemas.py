@@ -150,11 +150,9 @@ class CertificateInputSchema(CertificateCreationSchema):
 
             data["extensions"]["subAltNames"]["names"] = csr_sans
 
-            common_name = cert_utils.get_cn_from_csr(data["csr"])
-            if common_name:
+            if common_name := cert_utils.get_cn_from_csr(data["csr"]):
                 data["common_name"] = common_name
-            key_type = cert_utils.get_key_type_from_csr(data["csr"])
-            if key_type:
+            if key_type := cert_utils.get_key_type_from_csr(data["csr"]):
                 data["key_type"] = key_type
 
         # This code will be exercised for certificate import (without CSR)
@@ -389,9 +387,8 @@ class CertificateUploadInputSchema(CertificateCreationSchema):
 
     @validates_schema
     def keys(self, data):
-        if data.get("destinations"):
-            if not data.get("private_key"):
-                raise ValidationError("Destinations require private key.")
+        if data.get("destinations") and not data.get("private_key"):
+            raise ValidationError("Destinations require private key.")
 
     @validates_schema
     def validate_cert_private_key_chain(self, data):

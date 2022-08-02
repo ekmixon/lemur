@@ -31,7 +31,7 @@ def upgrade():
         ):
             if not idx:
                 continue
-            new_name = name[0] + "-" + str(idx)
+            new_name = f"{name[0]}-{str(idx)}"
             stmt = text("update certificates set name=:name where id=:id")
             stmt = stmt.bindparams(name=new_name, id=id[0])
             op.execute(stmt)

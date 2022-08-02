@@ -83,11 +83,10 @@ class AuthorityInputSchema(LemurInputSchema):
 
     @validates_schema
     def validate_subca(self, data):
-        if data["type"] == "subca":
-            if not data.get("parent"):
-                raise ValidationError(
-                    "If generating a subca, parent 'authority' must be specified."
-                )
+        if data["type"] == "subca" and not data.get("parent"):
+            raise ValidationError(
+                "If generating a subca, parent 'authority' must be specified."
+            )
 
     @pre_load
     def ensure_dates(self, data):

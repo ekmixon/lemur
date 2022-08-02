@@ -37,9 +37,7 @@ def ocsp_verify(cert, cert_path, issuer_chain_path):
     url, err = p1.communicate()
 
     if not url:
-        current_app.logger.debug(
-            "No OCSP URL in certificate {}".format(cert.serial_number)
-        )
+        current_app.logger.debug(f"No OCSP URL in certificate {cert.serial_number}")
         return None
 
     p2 = subprocess.Popen(
@@ -75,8 +73,9 @@ def ocsp_verify(cert, cert_path, issuer_chain_path):
 
     elif "revoked" in p_message:
         current_app.logger.debug(
-            "OCSP reports certificate revoked: {}".format(cert.serial_number)
+            f"OCSP reports certificate revoked: {cert.serial_number}"
         )
+
         return False
 
     elif "unauthorized" in p_message:
@@ -107,8 +106,9 @@ def crl_verify(cert, cert_path):
         ).value
     except x509.ExtensionNotFound:
         current_app.logger.debug(
-            "No CRLDP extension in certificate {}".format(cert.serial_number)
+            f"No CRLDP extension in certificate {cert.serial_number}"
         )
+
         return None
 
     for p in distribution_points:
@@ -131,7 +131,7 @@ def crl_verify(cert, cert_path):
                 response.content, backend=default_backend()
             )
         else:
-            current_app.logger.debug("CRL point is cached {}".format(point))
+            current_app.logger.debug(f"CRL point is cached {point}")
 
         for r in crl_cache[point]:
             if cert.serial_number == r.serial_number:
@@ -147,8 +147,9 @@ def crl_verify(cert, cert_path):
                     pass
 
                 current_app.logger.debug(
-                    "CRL reports certificate " "revoked: {}".format(cert.serial_number)
+                    f"CRL reports certificate revoked: {cert.serial_number}"
                 )
+
                 return False
 
     return True
@@ -190,7 +191,7 @@ def verify(cert_path, issuer_chain_path):
             crl_err = 1
 
     if verify_result is None:
-        current_app.logger.debug("Failed to verify {}".format(cert.serial_number))
+        current_app.logger.debug(f"Failed to verify {cert.serial_number}")
 
     return verify_result, ocsp_err, crl_err
 

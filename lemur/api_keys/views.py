@@ -130,16 +130,18 @@ class ApiKeyList(AuthenticatedResource):
            :statuscode 200: no error
            :statuscode 403: unauthenticated
         """
-        if not ApiKeyCreatorPermission().can():
-            if data["user"]["id"] != g.current_user.id:
-                return (
-                    dict(
-                        message="You are not authorized to create tokens for: {0}".format(
-                            data["user"]["username"]
-                        )
-                    ),
-                    403,
-                )
+        if (
+            not ApiKeyCreatorPermission().can()
+            and data["user"]["id"] != g.current_user.id
+        ):
+            return (
+                dict(
+                    message="You are not authorized to create tokens for: {0}".format(
+                        data["user"]["username"]
+                    )
+                ),
+                403,
+            )
 
         access_token = service.create(
             name=data["name"],
@@ -250,16 +252,15 @@ class ApiKeyUserList(AuthenticatedResource):
            :statuscode 200: no error
            :statuscode 403: unauthenticated
         """
-        if not ApiKeyCreatorPermission().can():
-            if user_id != g.current_user.id:
-                return (
-                    dict(
-                        message="You are not authorized to create tokens for: {0}".format(
-                            user_id
-                        )
-                    ),
-                    403,
-                )
+        if not ApiKeyCreatorPermission().can() and user_id != g.current_user.id:
+            return (
+                dict(
+                    message="You are not authorized to create tokens for: {0}".format(
+                        user_id
+                    )
+                ),
+                403,
+            )
 
         access_token = service.create(
             name=data["name"],
@@ -314,9 +315,11 @@ class ApiKeys(AuthenticatedResource):
         if access_key is None:
             return dict(message="This token does not exist!"), 404
 
-        if access_key.user_id != g.current_user.id:
-            if not ApiKeyCreatorPermission().can():
-                return dict(message="You are not authorized to view this token!"), 403
+        if (
+            access_key.user_id != g.current_user.id
+            and not ApiKeyCreatorPermission().can()
+        ):
+            return dict(message="You are not authorized to view this token!"), 403
 
         return dict(jwt=create_token(access_key.user_id, access_key.id, access_key.ttl))
 
@@ -362,9 +365,11 @@ class ApiKeys(AuthenticatedResource):
         if access_key is None:
             return dict(message="This token does not exist!"), 404
 
-        if access_key.user_id != g.current_user.id:
-            if not ApiKeyCreatorPermission().can():
-                return dict(message="You are not authorized to update this token!"), 403
+        if (
+            access_key.user_id != g.current_user.id
+            and not ApiKeyCreatorPermission().can()
+        ):
+            return dict(message="You are not authorized to update this token!"), 403
 
         service.update(
             access_key, name=data["name"], revoked=data["revoked"], ttl=data["ttl"]
@@ -405,9 +410,11 @@ class ApiKeys(AuthenticatedResource):
         if access_key is None:
             return dict(message="This token does not exist!"), 404
 
-        if access_key.user_id != g.current_user.id:
-            if not ApiKeyCreatorPermission().can():
-                return dict(message="You are not authorized to delete this token!"), 403
+        if (
+            access_key.user_id != g.current_user.id
+            and not ApiKeyCreatorPermission().can()
+        ):
+            return dict(message="You are not authorized to delete this token!"), 403
 
         service.delete(access_key)
         return {"result": True}
@@ -449,9 +456,8 @@ class UserApiKeys(AuthenticatedResource):
            :statuscode 200: no error
            :statuscode 403: unauthenticated
         """
-        if uid != g.current_user.id:
-            if not ApiKeyCreatorPermission().can():
-                return dict(message="You are not authorized to view this token!"), 403
+        if uid != g.current_user.id and not ApiKeyCreatorPermission().can():
+            return dict(message="You are not authorized to view this token!"), 403
 
         access_key = service.get(aid)
 
@@ -501,9 +507,8 @@ class UserApiKeys(AuthenticatedResource):
            :statuscode 200: no error
            :statuscode 403: unauthenticated
         """
-        if uid != g.current_user.id:
-            if not ApiKeyCreatorPermission().can():
-                return dict(message="You are not authorized to view this token!"), 403
+        if uid != g.current_user.id and not ApiKeyCreatorPermission().can():
+            return dict(message="You are not authorized to view this token!"), 403
 
         access_key = service.get(aid)
         if access_key is None:
@@ -547,9 +552,8 @@ class UserApiKeys(AuthenticatedResource):
            :statuscode 200: no error
            :statuscode 403: unauthenticated
         """
-        if uid != g.current_user.id:
-            if not ApiKeyCreatorPermission().can():
-                return dict(message="You are not authorized to view this token!"), 403
+        if uid != g.current_user.id and not ApiKeyCreatorPermission().can():
+            return dict(message="You are not authorized to view this token!"), 403
 
         access_key = service.get(aid)
         if access_key is None:
@@ -607,9 +611,11 @@ class ApiKeysDescribed(AuthenticatedResource):
         if access_key is None:
             return dict(message="This token does not exist!"), 404
 
-        if access_key.user_id != g.current_user.id:
-            if not ApiKeyCreatorPermission().can():
-                return dict(message="You are not authorized to view this token!"), 403
+        if (
+            access_key.user_id != g.current_user.id
+            and not ApiKeyCreatorPermission().can()
+        ):
+            return dict(message="You are not authorized to view this token!"), 403
 
         return access_key
 

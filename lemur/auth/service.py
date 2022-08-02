@@ -63,10 +63,7 @@ def create_token(user, aid=None, ttl=None):
     payload = {"iat": datetime.utcnow(), "exp": datetime.utcnow() + expiration_delta}
 
     # Handle Just a User ID & User Object.
-    if isinstance(user, int):
-        payload["sub"] = user
-    else:
-        payload["sub"] = user.id
+    payload["sub"] = user if isinstance(user, int) else user.id
     if aid is not None:
         payload["aid"] = aid
     # Custom TTLs are only supported on Access Keys.
@@ -76,8 +73,7 @@ def create_token(user, aid=None, ttl=None):
             del payload["exp"]
         else:
             payload["exp"] = datetime.utcnow() + timedelta(days=ttl)
-    token = jwt.encode(payload, current_app.config["LEMUR_TOKEN_SECRET"])
-    return token
+    return jwt.encode(payload, current_app.config["LEMUR_TOKEN_SECRET"])
 
 
 def login_required(f):

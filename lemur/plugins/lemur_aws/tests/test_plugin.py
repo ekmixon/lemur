@@ -21,7 +21,7 @@ def test_upload_acme_token(app):
     prefix = "some-path/more-path/"
     token_content = "Challenge"
     token_name = "TOKEN"
-    token_path = ".well-known/acme-challenge/" + token_name
+    token_path = f".well-known/acme-challenge/{token_name}"
 
     additional_options = [
         {

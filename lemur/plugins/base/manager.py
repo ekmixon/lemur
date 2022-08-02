@@ -15,13 +15,13 @@ class PluginManager(InstanceManager):
         return iter(self.all())
 
     def __len__(self):
-        return sum(1 for i in self.all())
+        return sum(1 for _ in self.all())
 
     def all(self, version=1, plugin_type=None):
         for plugin in sorted(
             super(PluginManager, self).all(), key=lambda x: x.get_title()
         ):
-            if not plugin.type == plugin_type and plugin_type:
+            if plugin.type != plugin_type and plugin_type:
                 continue
             if not plugin.is_enabled():
                 continue
@@ -63,9 +63,9 @@ class PluginManager(InstanceManager):
                 return result
 
     def register(self, cls):
-        self.add("%s.%s" % (cls.__module__, cls.__name__))
+        self.add(f"{cls.__module__}.{cls.__name__}")
         return cls
 
     def unregister(self, cls):
-        self.remove("%s.%s" % (cls.__module__, cls.__name__))
+        self.remove(f"{cls.__module__}.{cls.__name__}")
         return cls

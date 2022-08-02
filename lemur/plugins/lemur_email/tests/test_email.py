@@ -82,12 +82,12 @@ def test_render_expiration_summary(certificate, notification, notification_plugi
 
     message_data = get_eligible_security_summary_certs(None)
     assert len(message_data) == len(expected_certs)  # verify the expected number of intervals
-    for interval in expected_certs:
+    for interval, value in expected_certs.items():
         message_data_for_interval = [x for x in message_data if x['interval'] == int(interval)]
-        assert len(message_data_for_interval) > 0  # verify the interval is present in the message data
+        assert message_data_for_interval
         message_data_for_interval = message_data_for_interval[0]
         assert message_data_for_interval['certificates']  # verify the interval in the message data has a certs field
-        for cert in expected_certs[interval]:
+        for cert in value:
             message_data_for_cert = [x for x in message_data_for_interval['certificates'] if x['name'] == cert.name]
             assert message_data_for_cert  # verify the expected cert is present for the expected interval
 

@@ -50,22 +50,25 @@ def test_get_or_increase_name(session, certificate):
     certificate.name = "test-cert-11111111"
     assert (
         get_or_increase_name(certificate.name, certificate.serial)
-        == "test-cert-11111111-" + serial
+        == f"test-cert-11111111-{serial}"
     )
+
 
     certificate.name = "test-cert-11111111-1"
     assert (
         get_or_increase_name("test-cert-11111111-1", certificate.serial)
-        == "test-cert-11111111-1-" + serial
+        == f"test-cert-11111111-1-{serial}"
     )
 
+
     CertificateFactory(name="certificate1")
-    CertificateFactory(name="certificate1-" + serial)
+    CertificateFactory(name=f"certificate1-{serial}")
     session.commit()
 
-    assert get_or_increase_name(
-        "certificate1", int(serial, 16)
-    ) == "certificate1-{}-1".format(serial)
+    assert (
+        get_or_increase_name("certificate1", int(serial, 16))
+        == f"certificate1-{serial}-1"
+    )
 
 
 def test_get_all_certs(session, certificate):
@@ -1415,23 +1418,26 @@ def test_certificates_upload_patch(client, token, status):
 
 def test_sensitive_sort(client):
     resp = client.get(
-        api.url_for(CertificatesList) + "?sortBy=private_key&sortDir=asc",
+        f"{api.url_for(CertificatesList)}?sortBy=private_key&sortDir=asc",
         headers=VALID_ADMIN_HEADER_TOKEN,
     )
+
     assert "'private_key' is not sortable or filterable" in resp.json["message"]
 
 
 def test_boolean_filter(client):
     resp = client.get(
-        api.url_for(CertificatesList) + "?filter=notify;true",
+        f"{api.url_for(CertificatesList)}?filter=notify;true",
         headers=VALID_ADMIN_HEADER_TOKEN,
     )
+
     assert resp.status_code == 200
     # Also don't crash with invalid input (we currently treat that as false)
     resp = client.get(
-        api.url_for(CertificatesList) + "?filter=notify;whatisthis",
+        f"{api.url_for(CertificatesList)}?filter=notify;whatisthis",
         headers=VALID_ADMIN_HEADER_TOKEN,
     )
+
     assert resp.status_code == 200
 
 

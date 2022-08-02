@@ -65,9 +65,7 @@ def format_elb_cipher_policy_v2(policy):
 
     for descr in policy["SslPolicies"]:
         name = descr["Name"]
-        for cipher in descr["Ciphers"]:
-            ciphers.append(cipher["Name"])
-
+        ciphers.extend(cipher["Name"] for cipher in descr["Ciphers"])
     return dict(name=name, ciphers=ciphers)
 
 
@@ -126,7 +124,7 @@ def get_elb_endpoints(account_number, region, elb_dict):
             )
             endpoint["policy"] = format_elb_cipher_policy(policy)
 
-        current_app.logger.debug("Found new endpoint. Endpoint: {}".format(endpoint))
+        current_app.logger.debug(f"Found new endpoint. Endpoint: {endpoint}")
 
         endpoints.append(endpoint)
 
@@ -213,10 +211,11 @@ class AWSSourcePlugin(SourcePlugin):
         account_number = self.get_option("accountNumber", options)
         regions = self.get_option("regions", options)
 
-        if not regions:
-            regions = ec2.get_regions(account_number=account_number)
-        else:
-            regions = "".join(regions.split()).split(",")
+        regions = (
+            "".join(regions.split()).split(",")
+            if regions
+            else ec2.get_regions(account_number=account_number)
+        )
 
         for region in regions:
             try:
@@ -302,8 +301,9 @@ class AWSSourcePlugin(SourcePlugin):
         if "/" in certificate_name:
             certificate_name = certificate_name.split('/')[-1]
         try:
-            cert = iam.get_certificate(certificate_name, account_number=account_number)
-            if cert:
+            if cert := iam.get_certificate(
+                certificate_name, account_number=account_number
+            ):
                 return dict(
                     body=cert["CertificateBody"],
                     chain=cert.get("CertificateChain"),
@@ -349,8 +349,10 @@ class AWSSourcePlugin(SourcePlugin):
                 if not listener.get("Certificates"):
                     continue
 
-                for certificate in listener["Certificates"]:
-                    certificate_names.append(iam.get_name_from_arn(certificate["CertificateArn"]))
+                certificate_names.extend(
+                    iam.get_name_from_arn(certificate["CertificateArn"])
+                    for certificate in listener["Certificates"]
+                )
 
         return certificate_names
 
@@ -488,7 +490,7 @@ class S3DestinationPlugin(ExportDestinationPlugin):
         region = self.get_option("region", options)
         filename = token_path.split("/")[-1]
         if not prefix.endswith("/"):
-            prefix + "/"
+            f"{prefix}/"
 
         response = s3.put(bucket_name=bucket_name,
                           region_name=region,

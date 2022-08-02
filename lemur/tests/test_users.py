@@ -164,16 +164,19 @@ def test_user_list_patch(client, token, status):
 
 def test_sensitive_filter(client):
     resp = client.get(
-        api.url_for(UsersList) + "?filter=password;a", headers=VALID_ADMIN_HEADER_TOKEN
+        f"{api.url_for(UsersList)}?filter=password;a",
+        headers=VALID_ADMIN_HEADER_TOKEN,
     )
+
     assert "'password' is not sortable or filterable" in resp.json["message"]
 
 
 def test_sensitive_sort(client):
     resp = client.get(
-        api.url_for(UsersList) + "?sortBy=password&sortDir=asc",
+        f"{api.url_for(UsersList)}?sortBy=password&sortDir=asc",
         headers=VALID_ADMIN_HEADER_TOKEN,
     )
+
     assert "'password' is not sortable or filterable" in resp.json["message"]
 
 

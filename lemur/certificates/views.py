@@ -894,16 +894,15 @@ class Certificates(AuthenticatedResource):
                 )
 
         for destination in data["destinations"]:
-            if destination.plugin.requires_key:
-                if not cert.private_key:
-                    return (
-                        dict(
-                            message="Unable to add destination: {0}. Certificate does not have required private key.".format(
-                                destination.label
-                            )
-                        ),
-                        400,
-                    )
+            if destination.plugin.requires_key and not cert.private_key:
+                return (
+                    dict(
+                        message="Unable to add destination: {0}. Certificate does not have required private key.".format(
+                            destination.label
+                        )
+                    ),
+                    400,
+                )
 
         # if owner is changed, remove all notifications and roles associated with old owner
         if cert.owner != data["owner"]:
@@ -919,7 +918,8 @@ class Certificates(AuthenticatedResource):
                     capture_exception()
                     # Add the removed destination back
                     data["destinations"].append(destination)
-                    error_message = error_message + f"Failed to remove destination: {destination.label}. {str(e)}. "
+                    error_message = f"{error_message}Failed to remove destination: {destination.label}. {str(e)}. "
+
 
         # go ahead with DB update
         cert = service.update(certificate_id, **data)
@@ -1386,21 +1386,20 @@ class CertificateExport(AuthenticatedResource):
                     400,
                 )
 
-            else:
-                # allow creators
-                if g.current_user != cert.user:
-                    owner_role = role_service.get_by_name(cert.owner)
-                    permission = CertificatePermission(
-                        owner_role, [x.name for x in cert.roles]
-                    )
+            # allow creators
+            if g.current_user != cert.user:
+                owner_role = role_service.get_by_name(cert.owner)
+                permission = CertificatePermission(
+                    owner_role, [x.name for x in cert.roles]
+                )
 
-                    if not permission.can():
-                        return (
-                            dict(
-                                message="You are not authorized to export this certificate."
-                            ),
-                            403,
-                        )
+                if not permission.can():
+                    return (
+                        dict(
+                            message="You are not authorized to export this certificate."
+                        ),
+                        403,
+                    )
 
         options = data["plugin"]["plugin_options"]
 

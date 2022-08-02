@@ -63,11 +63,10 @@ class AtlasMetricRedisPlugin(MetricPlugin):
                 )
             )
 
-        if metric_tags:
-            if not isinstance(metric_tags, dict):
-                raise Exception(
-                    "Invalid Metric Tags for Atlas: Tags must be in dict format"
-                )
+        if metric_tags and not isinstance(metric_tags, dict):
+            raise Exception(
+                "Invalid Metric Tags for Atlas: Tags must be in dict format"
+            )
 
         self.metric_data["timestamp"] = millis_since_epoch()
         self.metric_data["type"] = metric_type.upper()

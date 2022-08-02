@@ -69,17 +69,12 @@ class AcmeHandler(object):
         if not existing_regr and current_app.config.get("ACME_REGR"):
             existing_regr = True
 
-        if existing_key and existing_regr:
-            return True
-        else:
-            return False
+        return bool(existing_key and existing_regr)
 
     def strip_wildcard(self, host):
         """Removes the leading wildcard and returns Host and whether it was removed or not (True/False)"""
         prefix = "*."
-        if host.startswith(prefix):
-            return host[len(prefix):], True
-        return host, False
+        return (host[len(prefix):], True) if host.startswith(prefix) else (host, False)
 
     def maybe_add_extension(self, host, dns_provider_options):
         if dns_provider_options and dns_provider_options.get(
@@ -149,10 +144,12 @@ class AcmeHandler(object):
     def setup_acme_client(self, authority):
         if not authority.options:
             raise InvalidAuthority("Invalid authority. Options not set")
-        options = {}
+        options = {
+            option["name"]: option.get("value")
+            for option in json.loads(authority.options)
+        }
 
-        for option in json.loads(authority.options):
-            options[option["name"]] = option.get("value")
+
         email = options.get("email", current_app.config.get("ACME_EMAIL"))
         tel = options.get("telephone", current_app.config.get("ACME_TEL"))
         directory_url = options.get(
@@ -164,8 +161,8 @@ class AcmeHandler(object):
         )
         existing_regr = options.get("acme_regr", current_app.config.get("ACME_REGR"))
 
-        eab_kid = options.get("eab_kid", None)
-        eab_hmac_key = options.get("eab_hmac_key", None)
+        eab_kid = options.get("eab_kid")
+        eab_hmac_key = options.get("eab_hmac_key")
 
         if existing_key and existing_regr:
             current_app.logger.debug("Reusing existing ACME account")
@@ -264,11 +261,17 @@ class AcmeHandler(object):
             acme_client.revoke(fullchain_com, crl_reason)  # revocation reason as int (per RFC 5280 section 5.3.1)
         except (errors.ConflictError, errors.ClientError, errors.Error) as e:
             # Certificate already revoked.
-            current_app.logger.error("Certificate revocation failed with message: " + e.detail)
+            current_app.logger.error(
+                f"Certificate revocation failed with message: {e.detail}"
+            )
+
             metrics.send("acme_revoke_certificate_failure", "counter", 1)
             return False
 
-        current_app.logger.warning("Certificate succesfully revoked: " + certificate.name)
+        current_app.logger.warning(
+            f"Certificate succesfully revoked: {certificate.name}"
+        )
+
         metrics.send("acme_revoke_certificate_success", "counter", 1)
         return True
 
@@ -299,7 +302,7 @@ class AcmeDnsHandler(AcmeHandler):
         domain_to_validate, is_wildcard = self.strip_wildcard(host)
         dns_challenges = []
         for authz in authorizations:
-            if not authz.body.identifier.value.lower() == domain_to_validate.lower():
+            if authz.body.identifier.value.lower() != domain_to_validate.lower():
                 continue
             if is_wildcard and not authz.body.wildcard:
                 continue
@@ -309,9 +312,11 @@ class AcmeDnsHandler(AcmeHandler):
             if authz.body.status == STATUS_VALID:
                 metrics.send("get_acme_challenges_already_valid", "counter", 1)
                 return [], True
-            for combo in authz.body.challenges:
-                if isinstance(combo.chall, challenges.DNS01):
-                    dns_challenges.append(combo)
+            dns_challenges.extend(
+                combo
+                for combo in authz.body.challenges
+                if isinstance(combo.chall, challenges.DNS01)
+            )
 
         return dns_challenges, False
 
@@ -323,10 +328,10 @@ class AcmeDnsHandler(AcmeHandler):
             "ultradns": ultradns,
             "powerdns": powerdns
         }
-        provider = provider_types.get(type)
-        if not provider:
-            raise UnknownProvider("No such DNS provider: {}".format(type))
-        return provider
+        if provider := provider_types.get(type):
+            return provider
+        else:
+            raise UnknownProvider(f"No such DNS provider: {type}")
 
     def start_dns_challenge(
             self,
@@ -380,8 +385,9 @@ class AcmeDnsHandler(AcmeHandler):
         if not dns_providers:
             metrics.send("complete_dns_challenge_error_no_dnsproviders", "counter", 1)
             raise Exception(
-                "No DNS providers found for domain: {}".format(authz_record.target_domain)
+                f"No DNS providers found for domain: {authz_record.target_domain}"
             )
+
 
         for dns_provider in dns_providers:
             # Grab account number (For Route53)
@@ -436,8 +442,7 @@ class AcmeDnsHandler(AcmeHandler):
             if current_app.config.get("ACME_ENABLE_DELEGATED_CNAME", False):
                 cname_result, _ = self.strip_wildcard(domain)
                 cname_result = challenges.DNS01().validation_domain_name(cname_result)
-                cname_result = self.get_cname(cname_result)
-                if cname_result:
+                if cname_result := self.get_cname(cname_result):
                     target_domain = cname_result
                     self.autodetect_dns_providers(target_domain)
                     metrics.send(
@@ -448,13 +453,13 @@ class AcmeDnsHandler(AcmeHandler):
                 metrics.send(
                     "get_authorizations_no_dns_provider_for_domain", "counter", 1
                 )
-                raise Exception("No DNS providers found for domain: {}".format(target_domain))
+                raise Exception(f"No DNS providers found for domain: {target_domain}")
 
             for dns_provider in self.dns_providers_for_domain[target_domain]:
                 dns_provider_plugin = self.get_dns_provider(dns_provider.provider_type)
                 dns_provider_options = json.loads(dns_provider.credentials)
                 account_number = dns_provider_options.get("account_id")
-                authz_record = self.start_dns_challenge(
+                if authz_record := self.start_dns_challenge(
                     acme_client,
                     account_number,
                     domain,
@@ -462,9 +467,7 @@ class AcmeDnsHandler(AcmeHandler):
                     dns_provider_plugin,
                     order,
                     dns_provider.options,
-                )
-                # it can be null, if hostname is still valid
-                if authz_record:
+                ):
                     authorizations.append(authz_record)
         return authorizations
 
@@ -480,7 +483,7 @@ class AcmeDnsHandler(AcmeHandler):
             if not dns_provider.domains:
                 continue
             for name in dns_provider.domains:
-                if name == domain or domain.endswith("." + name):
+                if name == domain or domain.endswith(f".{name}"):
                     if len(name) > match_length:
                         self.dns_providers_for_domain[domain] = [dns_provider]
                         match_length = len(name)
@@ -556,7 +559,6 @@ class AcmeDnsHandler(AcmeHandler):
                         # or we're not authorized to modify it.
                         metrics.send("cleanup_dns_challenges_error", "counter", 1)
                         capture_exception()
-                        pass
 
     def get_cname(self, domain):
         """

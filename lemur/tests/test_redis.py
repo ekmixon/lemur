@@ -10,4 +10,4 @@ def test_write_and_read_from_redis():
     key = f"{function}.last_success"
     value = int(time.time())
     assert red.set(key, value) is True
-    assert (int(red.get(key)) == value) is True
+    assert int(red.get(key)) == value

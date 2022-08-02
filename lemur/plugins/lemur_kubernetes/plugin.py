@@ -49,12 +49,10 @@ def ensure_resource(k8s_api, k8s_base_uri, namespace, kind, name, data):
 
 
 def _resolve_ns(k8s_base_uri, namespace, api_ver=DEFAULT_API_VERSION):
-    api_group = "api"
-    if "/" in api_ver:
-        api_group = "apis"
+    api_group = "apis" if "/" in api_ver else "api"
     return "{base}/{api_group}/{api_ver}/namespaces".format(
         base=k8s_base_uri, api_group=api_group, api_ver=api_ver
-    ) + ("/" + namespace if namespace else "")
+    ) + (f"/{namespace}" if namespace else "")
 
 
 def _resolve_uri(k8s_base_uri, namespace, kind, name=None, api_ver=DEFAULT_API_VERSION):
@@ -65,7 +63,7 @@ def _resolve_uri(k8s_base_uri, namespace, kind, name=None, api_ver=DEFAULT_API_V
         itertools.chain.from_iterable(
             [
                 (_resolve_ns(k8s_base_uri, namespace, api_ver=api_ver),),
-                ((kind + "s").lower(),),
+                (f"{kind}s".lower(),),
                 (name,) if name else (),
             ]
         )
@@ -208,14 +206,12 @@ class KubernetesDestinationPlugin(DestinationPlugin):
             )
 
         except Exception as e:
-            current_app.logger.exception(
-                "Exception in upload: {}".format(e), exc_info=True
-            )
+            current_app.logger.exception(f"Exception in upload: {e}", exc_info=True)
             raise
 
         if err is not None:
             current_app.logger.error("Error deploying resource: %s", err)
-            raise Exception("Error uploading secret: " + err)
+            raise Exception(f"Error uploading secret: {err}")
 
     def k8s_bearer(self, options):
         bearer = self.get_option("kubernetesAuthToken", options)
@@ -235,8 +231,7 @@ class KubernetesDestinationPlugin(DestinationPlugin):
 
     def k8s_cert(self, options):
         cert_file = self.get_option("kubernetesServerCertificateFile", options)
-        cert = self.get_option("kubernetesServerCertificate", options)
-        if cert:
+        if cert := self.get_option("kubernetesServerCertificate", options):
             cert_file = os.path.join(
                 os.path.abspath(os.path.dirname(__file__)), "k8.cert"
             )
@@ -270,7 +265,7 @@ class K8sSession(requests.Session):
     def __init__(self, bearer, cert_file):
         super(K8sSession, self).__init__()
 
-        self.headers.update({"Authorization": "Bearer %s" % bearer})
+        self.headers.update({"Authorization": f"Bearer {bearer}"})
 
         self.verify = cert_file
 

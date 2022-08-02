@@ -64,11 +64,10 @@ class AtlasMetricPlugin(MetricPlugin):
                 )
             )
 
-        if metric_tags:
-            if not isinstance(metric_tags, dict):
-                raise Exception(
-                    "Invalid Metric Tags for Atlas: Tags must be in dict format"
-                )
+        if metric_tags and not isinstance(metric_tags, dict):
+            raise Exception(
+                "Invalid Metric Tags for Atlas: Tags must be in dict format"
+            )
 
         if (
             metric_value == "NaN"

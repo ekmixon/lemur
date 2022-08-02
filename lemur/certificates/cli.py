@@ -511,20 +511,18 @@ def reissue(old_certificate_name, notify, commit):
     status = FAILURE_METRIC_STATUS
 
     try:
-        old_cert = validate_certificate(old_certificate_name)
-
-        if not old_cert:
-            for certificate in get_all_pending_reissue():
-                request_reissue(certificate, notify, commit)
-        else:
+        if old_cert := validate_certificate(old_certificate_name):
             request_reissue(old_cert, notify, commit)
 
+        else:
+            for certificate in get_all_pending_reissue():
+                request_reissue(certificate, notify, commit)
         status = SUCCESS_METRIC_STATUS
         print("[+] Done!")
     except Exception as e:
         capture_exception()
         current_app.logger.exception("Error reissuing certificate.", exc_info=True)
-        print("[!] Failed to reissue certificates. Reason: {}".format(e))
+        print(f"[!] Failed to reissue certificates. Reason: {e}")
 
     metrics.send(
         "certificate_reissue_job", "counter", 1, metric_tags={"status": status}
@@ -549,8 +547,6 @@ def reissue(old_certificate_name, notify, commit):
 )
 def query(fqdns, issuer, owner, expired):
     """Prints certificates that match the query params."""
-    table = []
-
     q = database.session_query(Certificate)
     if issuer:
         sub_query = (
@@ -580,9 +576,7 @@ def query(fqdns, issuer, owner, expired):
                 )
             )
 
-    for c in q.all():
-        table.append([c.id, c.name, c.owner, c.issuer])
-
+    table = [[c.id, c.name, c.owner, c.issuer] for c in q.all()]
     print(tabulate(table, headers=["Id", "Name", "Owner", "Issuer"], tablefmt="csv"))
 
 
@@ -610,7 +604,7 @@ def worker(data, commit, reason):
             1,
             metric_tags={"status": FAILURE_METRIC_STATUS},
         )
-        print("[!] Failed to revoke certificates. Reason: {}".format(e))
+        print(f"[!] Failed to revoke certificates. Reason: {e}")
 
 
 @manager.command
@@ -855,11 +849,7 @@ def deactivate_entrust_certificates():
             sleep(30)
         try:
             response = entrust_plugin.deactivate_certificate(cert)
-            if response == 200:
-                cert.status = "revoked"
-            else:
-                cert.status = "unknown"
-
+            cert.status = "revoked" if response == 200 else "unknown"
             log_data["valid"] = cert.status
             log_data["certificate_name"] = cert.name
             log_data["certificate_id"] = cert.id
@@ -904,8 +894,7 @@ def disable_rotation_of_duplicate_certificates(commit):
     authority_ids = []
     invalid_authorities = []
     for authority_name in authority_names:
-        authority = get_authority_by_name(authority_name)
-        if authority:
+        if authority := get_authority_by_name(authority_name):
             authority_ids.append(authority.id)
         else:
             invalid_authorities.append(authority_name)
@@ -968,7 +957,7 @@ def process_duplicates(duplicate_candidate_cert, skipped_certs, rotation_disable
 
     processed_unique_prefix.append(name_without_serial_num)
 
-    prefix_to_match = name_without_serial_num + '%'
+    prefix_to_match = f'{name_without_serial_num}%'
     certs_with_same_prefix = get_certificates_with_same_prefix_with_rotate_on(prefix_to_match)
 
     if len(certs_with_same_prefix) == 1:
@@ -1007,7 +996,10 @@ def process_duplicates(duplicate_candidate_cert, skipped_certs, rotation_disable
 
     # If no certificate has endpoint, pick fallback_cert_to_rotate or any one to allow one certificate to auto-rotate.
     if not certs_to_stay_on_autorotate:
-        certs_to_stay_on_autorotate.append(fallback_cert_to_rotate if fallback_cert_to_rotate else certs_with_same_prefix[0])
+        certs_to_stay_on_autorotate.append(
+            fallback_cert_to_rotate or certs_with_same_prefix[0]
+        )
+
 
     for matching_cert in certs_with_same_prefix:
         if matching_cert.name in certs_to_stay_on_autorotate:

@@ -17,9 +17,10 @@ def convert_validity_years(data):
 
         end = now.shift(years=+int(data["validity_years"]))
 
-        if not current_app.config.get("LEMUR_ALLOW_WEEKEND_EXPIRATION", True):
-            if is_weekend(end):
-                end = end.shift(days=-2)
+        if not current_app.config.get(
+            "LEMUR_ALLOW_WEEKEND_EXPIRATION", True
+        ) and is_weekend(end):
+            end = end.shift(days=-2)
 
         data["validity_end"] = end.isoformat()
     return data

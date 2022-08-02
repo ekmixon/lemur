@@ -56,9 +56,8 @@ def is_valid(listener_tuple):
     :param listener_tuple:
     """
     lb_port, i_port, lb_protocol, arn = listener_tuple
-    if lb_protocol.lower() in ["ssl", "https"]:
-        if not arn:
-            raise InvalidListener
+    if lb_protocol.lower() in ["ssl", "https"] and not arn:
+        raise InvalidListener
 
     return listener_tuple
 
@@ -80,7 +79,7 @@ def get_all_elbs(**kwargs):
             if not response.get("NextMarker"):
                 return elbs
             else:
-                kwargs.update(dict(Marker=response["NextMarker"]))
+                kwargs |= dict(Marker=response["NextMarker"])
     except Exception as e:  # noqa
         metrics.send("get_all_elbs_error", "counter", 1)
         capture_exception()
@@ -104,7 +103,7 @@ def get_all_elbs_v2(**kwargs):
             if not response.get("NextMarker"):
                 return elbs
             else:
-                kwargs.update(dict(Marker=response["NextMarker"]))
+                kwargs |= dict(Marker=response["NextMarker"])
     except Exception as e:  # noqa
         metrics.send("get_all_elbs_v2_error", "counter", 1)
         capture_exception()

@@ -133,10 +133,7 @@ class VaultSourcePlugin(SourcePlugin):
             if "chain" in secret["data"][cname]:
                 chain = secret["data"][cname]["chain"]
             elif len(cert) > 1:
-                if cert[1].startswith(cert_filter):
-                    chain = cert[1] + cert_delimiter
-                else:
-                    chain = None
+                chain = cert[1] + cert_delimiter if cert[1].startswith(cert_filter) else None
             else:
                 chain = None
             data.append({"body": body, "chain": chain, "name": cname})
@@ -146,8 +143,7 @@ class VaultSourcePlugin(SourcePlugin):
 
     def get_endpoints(self, options, **kwargs):
         """ Not implemented yet """
-        endpoints = []
-        return endpoints
+        return []
 
 
 class VaultDestinationPlugin(DestinationPlugin):
@@ -260,11 +256,10 @@ class VaultDestinationPlugin(DestinationPlugin):
                 try:
                     if not re.match(san_filter, san, flags=re.IGNORECASE):
                         current_app.logger.exception(
-                            "Exception uploading secret to vault: invalid SAN: {}".format(
-                                san
-                            ),
+                            f"Exception uploading secret to vault: invalid SAN: {san}",
                             exc_info=True,
                         )
+
                         os._exit(1)
                 except re.error:
                     current_app.logger.exception(
@@ -311,11 +306,7 @@ class VaultDestinationPlugin(DestinationPlugin):
         secret = get_secret(client, mount, path)
         secret["data"][cname] = {}
 
-        if not cert_chain:
-            chain = ''
-        else:
-            chain = cert_chain
-
+        chain = cert_chain or ''
         if bundle == "Nginx":
             secret["data"][cname]["crt"] = "{0}\n{1}".format(body, chain)
             secret["data"][cname]["key"] = private_key

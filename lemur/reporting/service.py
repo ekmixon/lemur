@@ -19,17 +19,11 @@ def filter_by_validity(query, validity=None):
 
 
 def filter_by_owner(query, owner=None):
-    if owner:
-        return query.filter(Certificate.owner == owner)
-
-    return query
+    return query.filter(Certificate.owner == owner) if owner else query
 
 
 def filter_by_issuer(query, issuer=None):
-    if issuer:
-        return query.filter(Certificate.issuer == issuer)
-
-    return query
+    return query.filter(Certificate.issuer == issuer) if issuer else query
 
 
 def filter_by_deployment(query, deployment=None):

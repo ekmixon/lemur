@@ -47,10 +47,9 @@ def create_app(app_name=None, blueprints=None, config=None):
     :param blueprints:
     :return:
     """
-    if not blueprints:
-        blueprints = DEFAULT_BLUEPRINTS
-    else:
-        blueprints = blueprints + DEFAULT_BLUEPRINTS
+    blueprints = (
+        blueprints + DEFAULT_BLUEPRINTS if blueprints else DEFAULT_BLUEPRINTS
+    )
 
     if not app_name:
         app_name = __name__
@@ -90,7 +89,7 @@ def from_file(file_path, silent=False):
     except IOError as e:
         if silent and e.errno in (errno.ENOENT, errno.EISDIR):
             return False
-        e.strerror = "Unable to load configuration file (%s)" % e.strerror
+        e.strerror = f"Unable to load configuration file ({e.strerror})"
         raise
     return d
 

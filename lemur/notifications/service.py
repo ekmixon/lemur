@@ -140,8 +140,7 @@ def delete(notification_id):
 
     :param notification_id: Lemur assigned ID
     """
-    notification = get(notification_id)
-    if notification:
+    if notification := get(notification_id):
         log_service.audit_log("delete_notification", notification.label, "Deleting notification")
         database.delete(notification)
 
@@ -179,9 +178,7 @@ def get_all():
 
 def render(args):
     filt = args.pop("filter")
-    certificate_id = args.pop("certificate_id", None)
-
-    if certificate_id:
+    if certificate_id := args.pop("certificate_id", None):
         query = database.session_query(Notification).join(
             Certificate, Notification.certificate
         )

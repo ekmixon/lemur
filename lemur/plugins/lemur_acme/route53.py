@@ -19,13 +19,18 @@ def find_zone_id(domain, client=None):
     paginator = client.get_paginator("list_hosted_zones")
     zones = []
     for page in paginator.paginate():
-        for zone in page["HostedZones"]:
-            if domain.endswith(zone["Name"]) or (domain + ".").endswith(zone["Name"]):
-                if not zone["Config"]["PrivateZone"]:
-                    zones.append((zone["Name"], zone["Id"]))
+        zones.extend(
+            (zone["Name"], zone["Id"])
+            for zone in page["HostedZones"]
+            if (
+                domain.endswith(zone["Name"])
+                or f"{domain}.".endswith(zone["Name"])
+            )
+            and not zone["Config"]["PrivateZone"]
+        )
 
     if not zones:
-        raise ValueError("Unable to find a Route53 hosted zone for {}".format(domain))
+        raise ValueError(f"Unable to find a Route53 hosted zone for {domain}")
     return zones[0][1]
 
 
@@ -34,11 +39,12 @@ def get_zones(client=None):
     paginator = client.get_paginator("list_hosted_zones")
     zones = []
     for page in paginator.paginate():
-        for zone in page["HostedZones"]:
-            if not zone["Config"]["PrivateZone"]:
-                zones.append(
-                    zone["Name"][:-1]
-                )  # We need [:-1] to strip out the trailing dot.
+        zones.extend(
+            zone["Name"][:-1]
+            for zone in page["HostedZones"]
+            if not zone["Config"]["PrivateZone"]
+        )
+
     return zones
 
 
@@ -65,10 +71,10 @@ def change_txt_record(action, zone_id, domain, value, client=None):
     seen = False
     for record in current_txt_records:
         for k, v in record.items():
-            if '"{}"'.format(value) == v:
+            if f'"{value}"' == v:
                 seen = True
     if not seen:
-        current_txt_records.append({"Value": '"{}"'.format(value)})
+        current_txt_records.append({"Value": f'"{value}"'})
 
     if action == "DELETE" and len(current_txt_records) > 1:
         # If we want to delete one record out of many, we'll update the record to not include the deleted value instead.
@@ -76,8 +82,9 @@ def change_txt_record(action, zone_id, domain, value, client=None):
         current_txt_records = [
             record
             for record in current_txt_records
-            if not (record.get("Value") == '"{}"'.format(value))
+            if record.get("Value") != f'"{value}"'
         ]
+
         action = "UPSERT"
 
     response = client.change_resource_record_sets(
@@ -116,8 +123,7 @@ def delete_txt_record(change_ids, account_number, host, value):
                 "DELETE", zone_id, host, value, account_number=account_number
             )
         except Exception as e:
-            if "but it was not found" in e.response.get("Error", {}).get("Message"):
-                # We tried to delete a record that doesn't exist. We'll ignore this error.
-                pass
-            else:
+            if "but it was not found" not in e.response.get("Error", {}).get(
+                "Message"
+            ):
                 raise

@@ -107,12 +107,12 @@ class ADCSSourcePlugin(SourcePlugin):
                 # we have a certificate
                 pubkey = crypto.load_certificate(crypto.FILETYPE_PEM, cert)
                 # loop through extensions to see if we find "TLS Web Server Authentication"
-                for e_id in range(0, pubkey.get_extension_count() - 1):
+                for e_id in range(pubkey.get_extension_count() - 1):
                     try:
                         extension = "{0}".format(pubkey.get_extension(e_id))
                     except Exception:
                         extensionn = ""
-                    if extension.find("TLS Web Server Authentication") != -1:
+                    if "TLS Web Server Authentication" in extension:
                         out_certlist.append(
                             {"name": format(pubkey.get_subject().CN), "body": cert}
                         )

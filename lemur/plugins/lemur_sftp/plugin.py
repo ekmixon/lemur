@@ -148,20 +148,20 @@ class SFTPDestinationPlugin(DestinationPlugin):
 
         cn = common_name(parse_certificate(body))
         dst_path = self.get_option("destinationPath", options)
-        dst_path_cn = dst_path + "/" + cn
+        dst_path_cn = f"{dst_path}/{cn}"
         export_format = self.get_option("exportFormat", options)
 
         # prepare files for upload
-        files = {cn + ".key": private_key, cn + ".pem": body}
+        files = {f"{cn}.key": private_key, f"{cn}.pem": body}
 
         if cert_chain:
             if export_format == "NGINX":
                 # assemble body + chain in the single file
-                files[cn + ".pem"] += "\n" + cert_chain
+                files[f"{cn}.pem"] += "\n" + cert_chain
 
             elif export_format == "Apache":
                 # store chain in the separate file
-                files[cn + ".ca.bundle.pem"] = cert_chain
+                files[f"{cn}.ca.bundle.pem"] = cert_chain
 
         self.upload_file(dst_path_cn, files, options)
 
@@ -249,7 +249,7 @@ class SFTPDestinationPlugin(DestinationPlugin):
             remote_path = allparts[0]
             for part in allparts:
                 try:
-                    if part != "/" and part != "":
+                    if part not in ["/", ""]:
                         remote_path = path.join(remote_path, part)
                     sftp.stat(remote_path)
                 except IOError:
@@ -295,4 +295,5 @@ class SFTPDestinationPlugin(DestinationPlugin):
                 for _, error in e.errors.items():
                     message = error.strerror
                 raise Exception(
-                    'Couldn\'t upload file to {}, error message: {}'.format(self.get_option("host", options), message))
+                    f"""Couldn\'t upload file to {self.get_option("host", options)}, error message: {message}"""
+                )

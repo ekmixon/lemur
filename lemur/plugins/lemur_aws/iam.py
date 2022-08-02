@@ -77,7 +77,7 @@ def upload_cert(name, body, private_key, path, cert_chain=None, **kwargs):
     if not path or path == "/":
         path = "/"
     else:
-        name = name + "-" + path.strip("/")
+        name = f"{name}-" + path.strip("/")
 
     metrics.send("upload_cert", "counter", 1, metric_tags={"name": name, "path": path})
     try:
@@ -166,14 +166,14 @@ def get_all_certificates(**kwargs):
         response = get_certificates(**kwargs)
         metadata = response["ServerCertificateMetadataList"]
 
-        for m in metadata:
-            certificates.append(
-                get_certificate(
-                    m["ServerCertificateName"], account_number=account_number
-                )
+        certificates.extend(
+            get_certificate(
+                m["ServerCertificateName"], account_number=account_number
             )
+            for m in metadata
+        )
 
         if not response.get("Marker"):
             return certificates
         else:
-            kwargs.update(dict(Marker=response["Marker"]))
+            kwargs |= dict(Marker=response["Marker"])

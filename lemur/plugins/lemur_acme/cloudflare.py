@@ -17,24 +17,21 @@ def find_zone_id(host):
     n = 1
 
     while n < 5:
-        n = n + 1
+        n += 1
         domain = ".".join(elements[-n:])
         current_app.logger.debug("Trying to get ID for zone {0}".format(domain))
 
         try:
             zone = cf.zones.get(params={"name": domain, "per_page": 1})
         except Exception as e:
-            current_app.logger.error("Cloudflare API error: %s" % e)
-            pass
-
+            current_app.logger.error(f"Cloudflare API error: {e}")
         if len(zone) == 1:
             break
 
-    if len(zone) == 0:
-        current_app.logger.error("No zone found")
-        return
-    else:
+    if len(zone) != 0:
         return zone[0]["id"]
+    current_app.logger.error("No zone found")
+    return
 
 
 def wait_for_dns_change(change_id, account_number=None):
@@ -42,7 +39,7 @@ def wait_for_dns_change(change_id, account_number=None):
     zone_id, record_id = change_id
     while True:
         r = cf.zones.get(zone_id, record_id)
-        current_app.logger.debug("Record status: %s" % r["status"])
+        current_app.logger.debug(f'Record status: {r["status"]}')
         if r["status"] == "active":
             break
         time.sleep(1)
@@ -64,9 +61,7 @@ def create_txt_record(host, value, account_number):
     try:
         r = cf.zones.dns_records.post(zone_id, data=txt_record)
     except Exception as e:
-        current_app.logger.error(
-            "/zones.dns_records.post %s: %s" % (txt_record["name"], e)
-        )
+        current_app.logger.error(f'/zones.dns_records.post {txt_record["name"]}: {e}')
     return zone_id, r["id"]
 
 
@@ -78,4 +73,4 @@ def delete_txt_record(change_ids, account_number, host, value):
         try:
             cf.zones.dns_records.delete(zone_id, record_id)
         except Exception as e:
-            current_app.logger.error("/zones.dns_records.post: %s" % e)
+            current_app.logger.error(f"/zones.dns_records.post: {e}")

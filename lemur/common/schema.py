@@ -24,33 +24,28 @@ class LemurSchema(Schema):
     __envelope__ = True
 
     def under(self, data, many=None):
-        items = []
         if many:
-            for i in data:
-                items.append({underscore(key): value for key, value in i.items()})
-            return items
+            return [{underscore(key): value for key, value in i.items()} for i in data]
         return {underscore(key): value for key, value in data.items()}
 
     def camel(self, data, many=None):
-        items = []
         if many:
-            for i in data:
-                items.append(
-                    {
-                        camelize(key, uppercase_first_letter=False): value
-                        for key, value in i.items()
-                    }
-                )
-            return items
+            return [
+                {
+                    camelize(key, uppercase_first_letter=False): value
+                    for key, value in i.items()
+                }
+                for i in data
+            ]
+
         return {
             camelize(key, uppercase_first_letter=False): value
             for key, value in data.items()
         }
 
     def wrap_with_envelope(self, data, many):
-        if many:
-            if "total" in self.context.keys():
-                return dict(total=self.context["total"], items=data)
+        if many and "total" in self.context.keys():
+            return dict(total=self.context["total"], items=data)
         return data
 
 
@@ -70,29 +65,25 @@ class LemurOutputSchema(LemurSchema):
         return self.under(data, many=many)
 
     def unwrap_envelope(self, data, many):
-        if many:
-            if data["items"]:
-                if isinstance(data, InstrumentedList) or isinstance(data, list):
-                    self.context["total"] = len(data)
-                    return data
-                else:
-                    self.context["total"] = data["total"]
+        if not many:
+            return data
+        if data["items"]:
+            if isinstance(data, (InstrumentedList, list)):
+                self.context["total"] = len(data)
+                return data
             else:
-                self.context["total"] = 0
-                data = {"items": []}
+                self.context["total"] = data["total"]
+        else:
+            self.context["total"] = 0
+            data = {"items": []}
 
-            return data["items"]
-
-        return data
+        return data["items"]
 
     @post_dump(pass_many=True)
     def post_process(self, data, many):
         if data:
             data = self.camel(data, many=many)
-        if self.__envelope__:
-            return self.wrap_with_envelope(data, many=many)
-        else:
-            return data
+        return self.wrap_with_envelope(data, many=many) if self.__envelope__ else data
 
 
 def format_errors(messages):
@@ -124,15 +115,21 @@ def unwrap_pagination(data, output_schema):
             if data.get("total") == 0:
                 return data
 
-            marshaled_data = {"total": data["total"]}
-            marshaled_data["items"] = output_schema.dump(data["items"], many=True).data
+            marshaled_data = {
+                "total": data["total"],
+                "items": output_schema.dump(data["items"], many=True).data,
+            }
+
             return marshaled_data
 
         return output_schema.dump(data).data
 
     elif isinstance(data, list):
-        marshaled_data = {"total": len(data)}
-        marshaled_data["items"] = output_schema.dump(data, many=True).data
+        marshaled_data = {
+            "total": len(data),
+            "items": output_schema.dump(data, many=True).data,
+        }
+
         return marshaled_data
     return output_schema.dump(data).data
 
@@ -142,11 +139,7 @@ def validate_schema(input_schema, output_schema):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if input_schema:
-                if request.get_json():
-                    request_data = request.get_json()
-                else:
-                    request_data = request.args
-
+                request_data = request.get_json() or request.args
                 data, errors = input_schema.load(request_data)
 
                 if errors:

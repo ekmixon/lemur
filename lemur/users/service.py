@@ -149,9 +149,7 @@ def render(args):
     """
     query = database.session_query(User)
 
-    filt = args.pop("filter")
-
-    if filt:
+    if filt := args.pop("filter"):
         terms = filt.split(";")
         query = database.filter(query, User, terms)
 

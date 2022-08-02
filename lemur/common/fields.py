@@ -85,21 +85,22 @@ class ArrowDateTime(Field):
         if value is None:
             return None
         self.dateformat = self.dateformat or self.DEFAULT_FORMAT
-        format_func = self.DATEFORMAT_SERIALIZATION_FUNCS.get(self.dateformat, None)
-        if format_func:
-            try:
-                return format_func(value, localtime=self.localtime)
-            except (AttributeError, ValueError) as err:
-                self.fail("format", input=value)
-        else:
+        if not (
+            format_func := self.DATEFORMAT_SERIALIZATION_FUNCS.get(
+                self.dateformat, None
+            )
+        ):
             return value.strftime(self.dateformat)
+        try:
+            return format_func(value, localtime=self.localtime)
+        except (AttributeError, ValueError) as err:
+            self.fail("format", input=value)
 
     def _deserialize(self, value, attr, data):
         if not value:  # Falsy values, e.g. '', None, [] are not valid
             raise self.fail("invalid")
         self.dateformat = self.dateformat or self.DEFAULT_FORMAT
-        func = self.DATEFORMAT_DESERIALIZATION_FUNCS.get(self.dateformat)
-        if func:
+        if func := self.DATEFORMAT_DESERIALIZATION_FUNCS.get(self.dateformat):
             try:
                 return arrow.get(func(value))
             except (TypeError, AttributeError, ValueError):
@@ -313,14 +314,13 @@ class BasicConstraintsExtension(Field):
         ca = value.get("ca", False)
         path_length = value.get("path_length", None)
 
-        if ca:
-            if not isinstance(path_length, (type(None), int)):
-                raise ValidationError(
-                    "A CA certificate path_length (for BasicConstraints) must be None or an integer."
-                )
-            return x509.BasicConstraints(ca=True, path_length=path_length)
-        else:
+        if not ca:
             return x509.BasicConstraints(ca=False, path_length=None)
+        if not isinstance(path_length, (type(None), int)):
+            raise ValidationError(
+                "A CA certificate path_length (for BasicConstraints) must be None or an integer."
+            )
+        return x509.BasicConstraints(ca=True, path_length=path_length)
 
 
 class SubjectAlternativeNameExtension(Field):
@@ -377,6 +377,8 @@ class SubjectAlternativeNameExtension(Field):
     def _deserialize(self, value, attr, data):
         general_names = []
         for name in value:
+            if name["nameType"] == "directoryName":
+                continue
             if name["nameType"] == "DNSName":
                 validators.sensitive_domain(name["value"])
                 general_names.append(x509.DNSName(name["value"]))
@@ -393,24 +395,6 @@ class SubjectAlternativeNameExtension(Field):
 
             elif name["nameType"] == "uniformResourceIdentifier":
                 general_names.append(x509.UniformResourceIdentifier(name["value"]))
-
-            elif name["nameType"] == "directoryName":
-                # TODO: Need to parse a string in name['value'] like:
-                # 'CN=Common Name, O=Org Name, OU=OrgUnit Name, C=US, ST=ST, L=City/emailAddress=person@example.com'
-                # or
-                # 'CN=Common Name/O=Org Name/OU=OrgUnit Name/C=US/ST=NH/L=City/emailAddress=person@example.com'
-                # and turn it into something like:
-                # x509.Name([
-                #     x509.NameAttribute(x509.OID_COMMON_NAME, "Common Name"),
-                #     x509.NameAttribute(x509.OID_ORGANIZATION_NAME, "Org Name"),
-                #     x509.NameAttribute(x509.OID_ORGANIZATIONAL_UNIT_NAME, "OrgUnit Name"),
-                #     x509.NameAttribute(x509.OID_COUNTRY_NAME, "US"),
-                #     x509.NameAttribute(x509.OID_STATE_OR_PROVINCE_NAME, "NH"),
-                #     x509.NameAttribute(x509.OID_LOCALITY_NAME, "City"),
-                #     x509.NameAttribute(x509.OID_EMAIL_ADDRESS, "person@example.com")
-                # ]
-                # general_names.append(x509.DirectoryName(x509.Name(BLAH))))
-                pass
 
             elif name["nameType"] == "rfc822Name":
                 general_names.append(x509.RFC822Name(name["value"]))
@@ -429,11 +413,7 @@ class SubjectAlternativeNameExtension(Field):
                 # The Python Cryptography library doesn't support x400Address types (yet?)
                 pass
 
-            elif name["nameType"] == "EDIPartyName":
-                # The Python Cryptography library doesn't support EDIPartyName types (yet?)
-                pass
-
-            else:
+            elif name["nameType"] != "EDIPartyName":
                 current_app.logger.warning(
                     "Unable to deserialize SubAltName with type: {name_type}".format(
                         name_type=name["nameType"]

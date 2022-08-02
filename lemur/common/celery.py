@@ -7,6 +7,7 @@ beat scheduler and a worker simultaneously, and to have jobs kick off starting a
 command: celery -A lemur.common.celery worker --loglevel=info -l DEBUG -B
 
 """
+
 import copy
 import sys
 import time
@@ -38,11 +39,7 @@ from lemur.plugins.base import plugins
 from lemur.sources.cli import clean, sync, validate_sources
 from lemur.sources.service import add_aws_destination_to_sources
 
-if current_app:
-    flask_app = current_app
-else:
-    flask_app = create_app()
-
+flask_app = current_app or create_app()
 red = RedisHandler().redis()
 
 
@@ -128,10 +125,7 @@ def report_celery_last_success_metrics():
     from this function.
     """
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "message": "recurrent task",
@@ -199,14 +193,12 @@ def report_failed_task(**kwargs):
             "Message": "Celery Task Failure",
         }
 
-        # Add traceback if exception info is in the kwargs
-        einfo = kwargs.get("einfo")
-        if einfo:
+        if einfo := kwargs.get("einfo"):
             log_data["traceback"] = einfo.traceback
 
         error_tags = get_celery_request_tags(**kwargs)
 
-        log_data.update(error_tags)
+        log_data |= error_tags
         current_app.logger.error(log_data)
         metrics.send("celery.failed_task", "TIMER", 1, metric_tags=error_tags)
 
@@ -226,7 +218,7 @@ def report_revoked_task(**kwargs):
 
         error_tags = get_celery_request_tags(**kwargs)
 
-        log_data.update(error_tags)
+        log_data |= error_tags
         current_app.logger.error(log_data)
         metrics.send("celery.revoked_task", "TIMER", 1, metric_tags=error_tags)
 
@@ -239,17 +231,15 @@ def fetch_acme_cert(id):
     Args:
         id: an id of a PendingCertificate
     """
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
     log_data = {
         "function": function,
-        "message": "Resolving pending certificate {}".format(id),
+        "message": f"Resolving pending certificate {id}",
         "task_id": task_id,
         "id": id,
     }
+
 
     current_app.logger.debug(log_data)
 
@@ -350,10 +340,7 @@ def fetch_all_pending_acme_certs():
     """Instantiate celery workers to resolve all pending Acme certificates"""
 
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "message": "Starting job.",
@@ -371,13 +358,14 @@ def fetch_all_pending_acme_certs():
     # We only care about certs using the acme-issuer plugin
     for cert in pending_certs:
         cert_authority = get_authority(cert.authority_id)
-        if cert_authority.plugin_name == "acme-issuer":
-            if datetime.now(timezone.utc) - cert.last_updated > timedelta(minutes=5):
-                log_data["message"] = "Triggering job for cert {}".format(cert.name)
-                log_data["cert_name"] = cert.name
-                log_data["cert_id"] = cert.id
-                current_app.logger.debug(log_data)
-                fetch_acme_cert.delay(cert.id)
+        if cert_authority.plugin_name == "acme-issuer" and datetime.now(
+            timezone.utc
+        ) - cert.last_updated > timedelta(minutes=5):
+            log_data["message"] = f"Triggering job for cert {cert.name}"
+            log_data["cert_name"] = cert.name
+            log_data["cert_id"] = cert.id
+            current_app.logger.debug(log_data)
+            fetch_acme_cert.delay(cert.id)
 
     metrics.send(f"{function}.success", "counter", 1)
     return log_data
@@ -387,10 +375,7 @@ def fetch_all_pending_acme_certs():
 def remove_old_acme_certs():
     """Prune old pending acme certificates from the database"""
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "message": "Starting job.",
@@ -424,10 +409,7 @@ def clean_all_sources():
     be ran periodically. This function triggers one celery task per source.
     """
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "message": "Creating celery task to clean source",
@@ -459,10 +441,7 @@ def clean_source(source):
     :return:
     """
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "message": "Cleaning source",
@@ -492,10 +471,7 @@ def sync_all_sources():
     This function will sync certificates from all sources. This function triggers one celery task per source.
     """
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "message": "creating celery task to sync source",
@@ -527,10 +503,7 @@ def sync_source(source):
     """
 
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "message": "Syncing source",
@@ -575,10 +548,7 @@ def sync_source_destination():
     We rely on account numbers to avoid duplicates.
     """
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "message": "syncing AWS destinations and sources",
@@ -610,10 +580,7 @@ def certificate_reissue():
     :return:
     """
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "message": "reissuing certificates",
@@ -650,10 +617,7 @@ def certificate_rotate(**kwargs):
     :return:
     """
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     region = kwargs.get("region")
     log_data = {
         "function": function,
@@ -694,10 +658,7 @@ def endpoints_expire():
     :return:
     """
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "message": "endpoints expire",
@@ -730,10 +691,7 @@ def get_all_zones():
     :return:
     """
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "message": "refresh all zones from available DNS providers",
@@ -766,10 +724,7 @@ def check_revoked():
     :return:
     """
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "message": "check if any valid certificate is revoked",
@@ -802,10 +757,7 @@ def notify_expirations():
     :return:
     """
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "message": "notify for cert expiration",
@@ -841,10 +793,7 @@ def notify_authority_expirations():
     :return:
     """
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "message": "notify for certificate authority cert expiration",
@@ -877,10 +826,7 @@ def send_security_expiration_summary():
     :return:
     """
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "message": "send summary for certificate expiration",
@@ -914,10 +860,7 @@ def enable_autorotate_for_certs_attached_to_endpoint():
     :return:
     """
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "task_id": task_id,
@@ -938,10 +881,7 @@ def enable_autorotate_for_certs_attached_to_destination():
     :return:
     """
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "task_id": task_id,
@@ -961,10 +901,7 @@ def deactivate_entrust_test_certificates():
     :return:
     """
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "message": "deactivate entrust certificates",
@@ -1004,10 +941,7 @@ def disable_rotation_of_duplicate_certificates():
     """
 
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "message": "Disable rotation of duplicate certs issued by Let's Encrypt",
@@ -1044,10 +978,7 @@ def notify_expiring_deployed_certificates():
     and notifies the security team.
     """
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "message": "notify expiring deployed certificates",
@@ -1082,10 +1013,7 @@ def identity_expiring_deployed_certificates():
     and stores information on which port(s) the certificate is currently being used for TLS.
     """
     function = f"{__name__}.{sys._getframe().f_code.co_name}"
-    task_id = None
-    if celery.current_task:
-        task_id = celery.current_task.request.id
-
+    task_id = celery.current_task.request.id if celery.current_task else None
     log_data = {
         "function": function,
         "message": "identify expiring deployed certificates",

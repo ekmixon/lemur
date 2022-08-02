@@ -504,8 +504,9 @@ def create(**kwargs):
             "issuer": cert.issuer,
             "not_after": cert.not_after.format('YYYY-MM-DD HH:mm:ss'),
             "not_before": cert.not_before.format('YYYY-MM-DD HH:mm:ss'),
-            "sans": str(', '.join([domain.name for domain in cert.domains])),
+            "sans": ', '.join([domain.name for domain in cert.domains]),
         }
+
         current_app.logger.info(log_data)
 
     if isinstance(cert, PendingCertificate):
@@ -543,12 +544,7 @@ def render(args):
     destination_id = args.pop("destination_id")
     notification_id = args.pop("notification_id", None)
     show = args.pop("show")
-    # owner = args.pop('owner')
-    # creator = args.pop('creator')  # TODO we should enabling filtering by owner
-
-    filt = args.pop("filter")
-
-    if filt:
+    if filt := args.pop("filter"):
         terms = filt.split(";")
         term = "%{0}%".format(terms[1])
         # Exact matches for quotes. Only applies to name, issuer, and cn
@@ -635,8 +631,7 @@ def render(args):
     if current_app.config.get("ALLOW_CERT_DELETION", False):
         query = query.filter(Certificate.deleted == false())
 
-    result = database.sort_and_page(query, Certificate, args)
-    return result
+    return database.sort_and_page(query, Certificate, args)
 
 
 def like_domain_query(term):
@@ -656,8 +651,7 @@ def query_name(certificate_name, args):
     """
     query = database.session_query(Certificate)
     query = query.filter(Certificate.name == certificate_name)
-    result = database.sort_and_page(query, Certificate, args)
-    return result
+    return database.sort_and_page(query, Certificate, args)
 
 
 def query_common_name(common_name, args):
@@ -688,10 +682,7 @@ def query_common_name(common_name, args):
         # if common_name is a wildcard ('%'), no need to include it in the query
         query = query.filter(Certificate.cn.ilike(common_name))
 
-    if paginate:
-        return database.paginate(query, page, count)
-
-    return query.all()
+    return database.paginate(query, page, count) if paginate else query.all()
 
 
 def create_csr(**csr_config):
@@ -865,7 +856,7 @@ def get_certificate_primitives(certificate):
     ser = CertificateInputSchema().load(
         CertificateOutputSchema().dump(certificate).data
     )
-    assert not ser.errors, "Error re-serializing certificate: %s" % ser.errors
+    assert not ser.errors, f"Error re-serializing certificate: {ser.errors}"
     data = ser.data
 
     # we can't quite tell if we are using a custom name, as this is an automated process (typically)
@@ -897,12 +888,7 @@ def reissue_certificate(certificate, notify=None, replace=None, user=None):
     if primitives.get("csr"):
         #  We do not want to re-use the CSR when creating a certificate because this defeats the purpose of rotation.
         del primitives["csr"]
-    if not user:
-        primitives["creator"] = certificate.user
-
-    else:
-        primitives["creator"] = user
-
+    primitives["creator"] = user or certificate.user
     if replace:
         primitives["replaces"] = [certificate]
 
@@ -911,9 +897,11 @@ def reissue_certificate(certificate, notify=None, replace=None, user=None):
     reissue_message_prefix = "Reissued by Lemur for cert ID "
     reissue_message = re.compile(f"{reissue_message_prefix}([0-9]+)")
     if primitives["description"]:
-        match = reissue_message.search(primitives["description"])
-        if match:
-            primitives["description"] = primitives["description"].replace(match.group(1), str(certificate.id))
+        if match := reissue_message.search(primitives["description"]):
+            primitives["description"] = primitives["description"].replace(
+                match[1], str(certificate.id)
+            )
+
         else:
             primitives["description"] = f"{reissue_message_prefix}{certificate.id}, {primitives['description']}"
     else:
@@ -928,9 +916,7 @@ def reissue_certificate(certificate, notify=None, replace=None, user=None):
     if (certificate.owner in ecc_reissue_owner_list) and (certificate.cn not in ecc_reissue_exclude_cn_list):
         primitives["key_type"] = "ECCPRIME256V1"
 
-    new_cert = create(**primitives)
-
-    return new_cert
+    return create(**primitives)
 
 
 def is_attached_to_endpoint(certificate_name, endpoint_name):
@@ -1003,7 +989,8 @@ def cleanup_after_revoke(certificate):
             # This cleanup is the best-effort since certificate is already revoked at this point.
             # We will capture the exception and move on to the next destination
             capture_exception()
-            error_message = error_message + f"Failed to remove destination: {destination.label}. {str(e)}. "
+            error_message = f"{error_message}Failed to remove destination: {destination.label}. {str(e)}. "
+
 
     database.update(certificate)
     return error_message
@@ -1113,14 +1100,16 @@ def get_certs_for_expiring_deployed_cert_check(exclude_domains, exclude_owners):
 
     exclude_conditions = []
     if exclude_domains:
-        for e in exclude_domains:
-            exclude_conditions.append(~Certificate.name.ilike("%{}%".format(e)))
+        exclude_conditions.extend(
+            ~Certificate.name.ilike(f"%{e}%") for e in exclude_domains
+        )
 
         q = q.filter(and_(*exclude_conditions))
 
     if exclude_owners:
-        for e in exclude_owners:
-            exclude_conditions.append(~Certificate.owner.ilike("{}".format(e)))
+        exclude_conditions.extend(
+            ~Certificate.owner.ilike(f"{e}") for e in exclude_owners
+        )
 
         q = q.filter(and_(*exclude_conditions))
 
@@ -1146,7 +1135,7 @@ def find_and_persist_domains_where_cert_is_deployed(certificate, excluded_domain
     for cert_association in [assoc for assoc in certificate.certificate_associations if '*' not in assoc.domain.name]:
         domain_name = cert_association.domain.name
         # skip this domain if excluded
-        if not any(excluded in domain_name for excluded in excluded_domains):
+        if all(excluded not in domain_name for excluded in excluded_domains):
             matched_ports_for_domain = []
             for port in current_app.config.get("LEMUR_PORTS_FOR_DEPLOYED_CERTIFICATE_CHECK", [443]):
                 start_time = time.time()
@@ -1196,7 +1185,7 @@ def get_expiring_deployed_certificates(exclude=None):
         matched_domains = defaultdict(list)
         for cert_association in [assoc for assoc in certificate.certificate_associations if assoc.ports]:
             matched_domains[cert_association.domain.name] = cert_association.ports
-        if len(matched_domains) > 0:
+        if matched_domains:
             certs_domains_and_ports[certificate] = matched_domains
 
     certs_domains_and_ports_by_owner = defaultdict(list)

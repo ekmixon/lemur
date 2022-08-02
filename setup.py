@@ -78,9 +78,7 @@ class SdistWithBuildStatic(sdist):
         self.run_command('build_static')
 
         with open(os.path.join(dist_path, 'lemur-package.json'), 'w') as fp:
-            json.dump({
-                'createdAt': datetime.datetime.utcnow().isoformat() + 'Z',
-            }, fp)
+            json.dump({'createdAt': f'{datetime.datetime.utcnow().isoformat()}Z'}, fp)
 
 
 class BuildStatic(Command):

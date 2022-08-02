@@ -146,9 +146,7 @@ def render(args):
     :return:
     """
     query = database.session_query(Endpoint)
-    filt = args.pop("filter")
-
-    if filt:
+    if filt := args.pop("filter"):
         terms = filt.split(";")
         if "active" in filt:  # this is really weird but strcmp seems to not work here??
             query = query.filter(Endpoint.active == truthiness(terms[1]))

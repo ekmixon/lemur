@@ -84,9 +84,7 @@ def fetch_objects(model, data, many=False):
         values = [v[attr] for v in data]
         items = model.query.filter(getattr(model, attr).in_(values)).all()
         found = [getattr(i, attr) for i in items]
-        diff = set(values).symmetric_difference(set(found))
-
-        if diff:
+        if diff := set(values).symmetric_difference(set(found)):
             raise ValidationError(
                 "Unable to locate {model} with {attr} {diff}".format(
                     model=model, attr=attr, diff=",".join(list(diff))
@@ -195,9 +193,9 @@ class PluginInputSchema(LemurInputSchema):
 
         plugin_options_validated = []
 
+        server_options_user_value = None
         # parse any sub-plugins
         for option in data.get("plugin_options", []):
-            server_options_user_value = None
             if not option:
                 continue  # Angular sometimes generates empty option objects.
             try:
@@ -229,7 +227,7 @@ class PluginInputSchema(LemurInputSchema):
                     server_options_with_user_value["value"] = option_value
                     plugin_options_validated.append(server_options_with_user_value)
 
-                except (ValueError, ValidationError) as e:
+                except ValueError as e:
                     raise ValidationError(
                         f"Unable to validate plugin options. Slug: {data['slug']} Option {option_name}: {e}"
                     )

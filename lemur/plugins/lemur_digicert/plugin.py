@@ -38,11 +38,12 @@ def log_status_code(r, *args, **kwargs):
     :return:
     """
     log_data = {
-        "reason": (r.reason if r.reason else ""),
+        "reason": r.reason or "",
         "status_code": r.status_code,
-        "url": (r.url if r.url else ""),
+        "url": r.url or "",
     }
-    metrics.send("digicert_status_code_{}".format(r.status_code), "counter", 1)
+
+    metrics.send(f"digicert_status_code_{r.status_code}", "counter", 1)
     current_app.logger.info(log_data)
 
 
@@ -108,9 +109,12 @@ def get_additional_names(options):
     names = []
     # add SANs if present
     if options.get("extensions"):
-        for san in options["extensions"]["sub_alt_names"]["names"]:
-            if isinstance(san, x509.DNSName):
-                names.append(san.value)
+        names.extend(
+            san.value
+            for san in options["extensions"]["sub_alt_names"]["names"]
+            if isinstance(san, x509.DNSName)
+        )
+
     return names
 
 
@@ -226,7 +230,7 @@ def handle_cis_response(response):
     elif response.status_code == 406:
         raise Exception("DigiCert: wrong header request format")
     elif response.status_code > 399:
-        raise Exception("DigiCert rejected request with the error:" + response.text)
+        raise Exception(f"DigiCert rejected request with the error:{response.text}")
 
     if response.url.endswith("download"):
         return response.content
@@ -399,12 +403,11 @@ class DigiCertIssuerPlugin(IssuerPlugin):
         end_entity, intermediate, root = pem.parse(
             self.session.get(certificate_url).content
         )
-        cert = {
+        return {
             "body": "\n".join(str(end_entity).splitlines()),
             "chain": "\n".join(str(intermediate).splitlines()),
             "external_id": str(certificate_id),
         }
-        return cert
 
     def cancel_ordered_certificate(self, pending_cert, **kwargs):
         """ Set the certificate order to canceled """

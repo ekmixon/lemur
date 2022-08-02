@@ -107,24 +107,19 @@ class TestPowerdns(unittest.TestCase):
         expected_payload = {
             "rrsets": [
                 {
-                    "name": domain + ".",
+                    "name": f"{domain}.",
                     "type": "TXT",
                     "ttl": 300,
                     "changetype": "REPLACE",
                     "records": [
-                        {
-                            "content": f"\"{token}\"",
-                            "disabled": False
-                        },
-                        {
-                            "content": f"\"{cur_token}\"",
-                            "disabled": False
-                        }
+                        {"content": f"\"{token}\"", "disabled": False},
+                        {"content": f"\"{cur_token}\"", "disabled": False},
                     ],
-                    "comments": []
+                    "comments": [],
                 }
             ]
         }
+
 
         result = powerdns.create_txt_record(domain, token, account_number)
         mock_current_app.logger.debug.assert_called_with(log_data)

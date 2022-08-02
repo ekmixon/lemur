@@ -2,6 +2,7 @@
 Helper Class for Redis
 
 """
+
 import redis
 import sys
 from flask import current_app
@@ -9,10 +10,7 @@ from sentry_sdk import capture_exception
 
 from lemur.factory import create_app
 
-if current_app:
-    flask_app = current_app
-else:
-    flask_app = create_app()
+flask_app = current_app or create_app()
 
 
 class RedisHandler:
@@ -48,6 +46,4 @@ def redis_get(key, default=None):
         v = red.get(key)
     except redis.exceptions.ConnectionError:
         v = None
-    if not v:
-        return default
-    return v
+    return v or default

@@ -61,9 +61,6 @@ def issue_certificate(csr, options, private_key=None):
         authority_key_identifier_serial = int(
             options["authority"].authority_certificate.serial
         )
-        # TODO figure out a better way to increment serial
-        # New authorities have a value at options['serial_number'] that is being ignored here.
-        serial = int(uuid.uuid4())
     else:
         # Issue certificate that is self-signed (new lemur_certificates root authority)
         issuer_subject = csr.subject
@@ -72,9 +69,9 @@ def issue_certificate(csr, options, private_key=None):
         authority_key_identifier_subject = None
         authority_key_identifier_issuer = csr.subject
         authority_key_identifier_serial = options["serial_number"]
-        # TODO figure out a better way to increment serial
-        serial = int(uuid.uuid4())
-
+    # TODO figure out a better way to increment serial
+    # New authorities have a value at options['serial_number'] that is being ignored here.
+    serial = int(uuid.uuid4())
     extensions = normalize_extensions(csr)
 
     builder = x509.CertificateBuilder(
@@ -117,24 +114,6 @@ def issue_certificate(csr, options, private_key=None):
                     authority_key_identifier_serial,
                 )
             builder = builder.add_extension(aki, critical=False)
-        if k == "certificate_info_access":
-            # FIXME: Implement the AuthorityInformationAccess extension
-            # descriptions = [
-            #     x509.AccessDescription(x509.oid.AuthorityInformationAccessOID.OCSP, x509.UniformResourceIdentifier(u"http://FIXME")),
-            #     x509.AccessDescription(x509.oid.AuthorityInformationAccessOID.CA_ISSUERS, x509.UniformResourceIdentifier(u"http://FIXME"))
-            # ]
-            # for k2, v2 in v.items():
-            #     if k2 == 'include_aia' and v2 == True:
-            #         builder = builder.add_extension(
-            #             x509.AuthorityInformationAccess(descriptions),
-            #             critical=False
-            #         )
-            pass
-        if k == "crl_distribution_points":
-            # FIXME: Implement the CRLDistributionPoints extension
-            # FIXME: Not implemented in lemur/schemas.py yet https://github.com/Netflix/lemur/issues/662
-            pass
-
     private_key = parse_private_key(private_key)
 
     cert = builder.sign(private_key, hashes.SHA256(), default_backend())
@@ -172,9 +151,7 @@ def normalize_extensions(csr):
             pass
 
         # Add all submitted SAN names to general_names
-        for san in san_extension.value:
-            general_names.append(san)
-
+        general_names.extend(iter(san_extension.value))
         san_extension = x509.Extension(
             x509.oid.ExtensionOID.SUBJECT_ALTERNATIVE_NAME,
             True,
@@ -190,9 +167,7 @@ def normalize_extensions(csr):
 
 
 def filter_san_extensions(ext):
-    if ext.oid == x509.oid.ExtensionOID.SUBJECT_ALTERNATIVE_NAME:
-        return False
-    return True
+    return ext.oid != x509.oid.ExtensionOID.SUBJECT_ALTERNATIVE_NAME
 
 
 class CryptographyIssuerPlugin(IssuerPlugin):

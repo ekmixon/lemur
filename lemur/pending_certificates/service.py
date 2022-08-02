@@ -88,8 +88,7 @@ def get_pending_certs(pending_ids):
         return database.find_all(query, PendingCertificate, {}).all()
     else:
         for pending_id in pending_ids:
-            pending_cert = get(pending_id)
-            if pending_cert:
+            if pending_cert := get(pending_id):
                 pending_certs.append(pending_cert)
     return pending_certs
 
@@ -200,12 +199,7 @@ def render(args):
     destination_id = args.pop("destination_id")
     notification_id = args.pop("notification_id", None)
     show = args.pop("show")
-    # owner = args.pop('owner')
-    # creator = args.pop('creator')  # TODO we should enabling filtering by owner
-
-    filt = args.pop("filter")
-
-    if filt:
+    if filt := args.pop("filter"):
         terms = filt.split(";")
 
         if "issuer" in terms:

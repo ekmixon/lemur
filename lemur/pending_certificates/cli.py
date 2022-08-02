@@ -39,8 +39,7 @@ def fetch(ids):
 
     for cert in pending_certs:
         authority = plugins.get(cert.authority.plugin_name)
-        real_cert = authority.get_ordered_certificate(cert)
-        if real_cert:
+        if real_cert := authority.get_ordered_certificate(cert):
             # If a real certificate was returned from issuer, then create it in Lemur and mark
             # the pending certificate as resolved
             final_cert = pending_certificate_service.create_certificate(
@@ -66,7 +65,7 @@ def fetch_all_acme():
     certificates.
     """
 
-    log_data = {"function": "{}.{}".format(__name__, sys._getframe().f_code.co_name)}
+    log_data = {"function": f"{__name__}.{sys._getframe().f_code.co_name}"}
     pending_certs = pending_certificate_service.get_unresolved_pending_certs()
     new = 0
     failed = 0

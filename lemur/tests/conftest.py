@@ -51,10 +51,9 @@ def pytest_runtest_setup(item):
 
 
 def pytest_runtest_makereport(item, call):
-    if "incremental" in item.keywords:
-        if call.excinfo is not None:
-            parent = item.parent
-            parent._previousfailed = item
+    if "incremental" in item.keywords and call.excinfo is not None:
+        parent = item.parent
+        parent._previousfailed = item
 
 
 @pytest.fixture(scope="session")
@@ -64,8 +63,9 @@ def app(request):
     Uses application factory `create_app`.
     """
     _app = create_app(
-        config_path=os.path.dirname(os.path.realpath(__file__)) + "/conf.py"
+        config_path=f"{os.path.dirname(os.path.realpath(__file__))}/conf.py"
     )
+
     ctx = _app.app_context()
     ctx.push()
 
@@ -180,7 +180,7 @@ def user(session):
     u = UserFactory()
     session.commit()
     user_token = create_token(u)
-    token = {"Authorization": "Basic " + user_token}
+    token = {"Authorization": f"Basic {user_token}"}
     return {"user": u, "token": token}
 
 
@@ -235,7 +235,7 @@ def admin_user(session):
     u.roles.append(admin_role)
     session.commit()
     user_token = create_token(u)
-    token = {"Authorization": "Basic " + user_token}
+    token = {"Authorization": f"Basic {user_token}"}
     return {"user": u, "token": token}
 
 

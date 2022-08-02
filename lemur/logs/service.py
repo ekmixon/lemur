@@ -68,9 +68,7 @@ def render(args):
     """
     query = database.session_query(Log)
 
-    filt = args.pop("filter")
-
-    if filt:
+    if filt := args.pop("filter"):
         terms = filt.split(";")
 
         if "certificate.name" in terms:
