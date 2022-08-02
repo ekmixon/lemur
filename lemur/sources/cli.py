@@ -29,9 +29,10 @@ manager = Manager(usage="Handles all source related tasks.")
 def validate_sources(source_strings):
     sources = []
     if not source_strings:
-        table = []
-        for source in source_service.get_all():
-            table.append([source.label, source.active, source.description])
+        table = [
+            [source.label, source.active, source.description]
+            for source in source_service.get_all()
+        ]
 
         print("No source specified choose from below:")
         print(tabulate(table, headers=["Label", "Active", "Description"]))

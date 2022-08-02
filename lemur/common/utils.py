@@ -57,19 +57,30 @@ def get_psuedo_random_string():
     """
     Create a random and strongish challenge.
     """
-    challenge = "".join(random.choice(string.ascii_uppercase) for x in range(6))  # noqa
-    challenge += "".join(random.choice("~!@#$%^&*()_+") for x in range(6))  # noqa
-    challenge += "".join(random.choice(string.ascii_lowercase) for x in range(6))
-    challenge += "".join(random.choice(string.digits) for x in range(6))  # noqa
+    challenge = "".join(
+        random.choice(string.ascii_uppercase) for _ in range(6)
+    ) + "".join(random.choice("~!@#$%^&*()_+") for _ in range(6))
+
+    challenge += "".join(random.choice(string.ascii_lowercase) for _ in range(6))
+    challenge += "".join(random.choice(string.digits) for _ in range(6))
     return challenge
 
 
 def get_random_secret(length):
     """ Similar to get_pseudo_random_string, but accepts a length parameter. """
-    secret_key = ''.join(random.choice(string.ascii_uppercase) for x in range(round(length / 4)))
-    secret_key = secret_key + ''.join(random.choice("~!@#$%^&*()_+") for x in range(round(length / 4)))
-    secret_key = secret_key + ''.join(random.choice(string.ascii_lowercase) for x in range(round(length / 4)))
-    return secret_key + ''.join(random.choice(string.digits) for x in range(round(length / 4)))
+    secret_key = ''.join(
+        random.choice(string.ascii_uppercase) for _ in range(round(length / 4))
+    ) + ''.join(
+        random.choice("~!@#$%^&*()_+") for _ in range(round(length / 4))
+    )
+
+    secret_key += ''.join(
+        random.choice(string.ascii_lowercase) for _ in range(round(length / 4))
+    )
+
+    return secret_key + ''.join(
+        random.choice(string.digits) for _ in range(round(length / 4))
+    )
 
 
 def get_state_token_secret():
@@ -190,10 +201,7 @@ def get_key_type_from_ec_curve(curve_name):
         ec.SECT571R1().name: "ECCSECT571R2",
     }
 
-    if curve_name in _CURVE_TYPES.keys():
-        return _CURVE_TYPES[curve_name]
-    else:
-        return None
+    return _CURVE_TYPES.get(curve_name, None)
 
 
 def generate_private_key(key_type):
@@ -374,10 +382,7 @@ def column_windows(session, column, windowsize):
 
     while intervals:
         start = intervals.pop(0)
-        if intervals:
-            end = intervals[0]
-        else:
-            end = None
+        end = intervals[0] if intervals else None
         yield int_for_range(start, end)
 
 
@@ -385,8 +390,7 @@ def windowed_query(q, column, windowsize):
     """"Break a Query into windows on a given column."""
 
     for whereclause in column_windows(q.session, column, windowsize):
-        for row in q.filter(whereclause).order_by(column):
-            yield row
+        yield from q.filter(whereclause).order_by(column)
 
 
 def truthiness(s):
@@ -398,13 +402,12 @@ def truthiness(s):
 def find_matching_certificates_by_hash(cert, matching_certs):
     """Given a Cryptography-formatted certificate cert, and Lemur-formatted certificates (matching_certs),
     determine if any of the certificate hashes match and return the matches."""
-    matching = []
-    for c in matching_certs:
-        if parse_certificate(c.body).fingerprint(hashes.SHA256()) == cert.fingerprint(
-            hashes.SHA256()
-        ):
-            matching.append(c)
-    return matching
+    return [
+        c
+        for c in matching_certs
+        if parse_certificate(c.body).fingerprint(hashes.SHA256())
+        == cert.fingerprint(hashes.SHA256())
+    ]
 
 
 def convert_pkcs7_bytes_to_pem(certs_pkcs7):
@@ -416,11 +419,10 @@ def convert_pkcs7_bytes_to_pem(certs_pkcs7):
     """
 
     certificates = pkcs7.load_pem_pkcs7_certificates(certs_pkcs7)
-    certificates_pem = []
-    for cert in certificates:
-        certificates_pem.append(pem.parse(cert.public_bytes(encoding=Encoding.PEM))[0])
-
-    return certificates_pem
+    return [
+        pem.parse(cert.public_bytes(encoding=Encoding.PEM))[0]
+        for cert in certificates
+    ]
 
 
 def get_certificate_via_tls(host, port, timeout=10):

@@ -95,15 +95,23 @@ class AcmeHttpChallenge(AcmeChallenge):
             if authz.body.status != STATUS_VALID:
                 all_pre_validated = False
                 # authz.body.challenges is a set of ChallengeBody objects.
-                for i in authz.body.challenges:
-                    # Find the supported challenge.
-                    if isinstance(i.chall, challenges.HTTP01):
-                        chall.append(i)
-            else:
-                current_app.logger.info("{} already validated, skipping".format(authz.body.identifier.value))
+                chall.extend(
+                    i
+                    for i in authz.body.challenges
+                    if isinstance(i.chall, challenges.HTTP01)
+                )
 
-        if len(chall) == 0 and not all_pre_validated:
-            raise Exception('HTTP-01 challenge was not offered by the CA server at {}'.format(orderr.uri))
+            else:
+                current_app.logger.info(
+                    f"{authz.body.identifier.value} already validated, skipping"
+                )
+
+
+        if not chall and not all_pre_validated:
+            raise Exception(
+                f'HTTP-01 challenge was not offered by the CA server at {orderr.uri}'
+            )
+
         elif not all_pre_validated:
             validation_target = None
             for option in json.loads(issuer_options["authority"].options):
@@ -134,14 +142,15 @@ class AcmeHttpChallenge(AcmeChallenge):
                 for chall in authz.body.challenges:
                     if chall.error:
                         current_app.logger.error(
-                            "ValidationError occured of type {}, with message {}".format(chall.error.typ,
-                                                                                         ERROR_CODES[chall.error.code]))
+                            f"ValidationError occured of type {chall.error.typ}, with message {ERROR_CODES[chall.error.code]}"
+                        )
+
             raise Exception('Validation error occured, can\'t complete challenges. See logs for more information.')
 
         pem_certificate, pem_certificate_chain = self.acme.extract_cert_and_chain(finalized_orderr.fullchain_pem,
                                                                                   finalized_orderr.alternative_fullchains_pem)
 
-        if len(deployed_challenges) != 0:
+        if deployed_challenges:
             for token_path in deployed_challenges:
                 self.cleanup(token_path, validation_target)
 
@@ -152,14 +161,17 @@ class AcmeHttpChallenge(AcmeChallenge):
 
         if not isinstance(challenge.chall, challenges.HTTP01):
             raise AcmeChallengeMissmatchError(
-                'The provided challenge is not of type HTTP01, but instead of type {}'.format(
-                    challenge.__class__.__name__))
+                f'The provided challenge is not of type HTTP01, but instead of type {challenge.__class__.__name__}'
+            )
+
 
         destination = destination_service.get(validation_target)
 
         if destination is None:
             raise Exception(
-                'Couldn\'t find the destination with name {}. Cant complete HTTP01 challenge'.format(validation_target))
+                f"Couldn\'t find the destination with name {validation_target}. Cant complete HTTP01 challenge"
+            )
+
 
         destination_plugin = plugins.get(destination.plugin_name)
 
@@ -175,7 +187,9 @@ class AcmeHttpChallenge(AcmeChallenge):
 
         if destination is None:
             current_app.logger.info(
-                'Couldn\'t find the destination with name {}, won\'t cleanup the challenge'.format(validation_target))
+                f"Couldn\'t find the destination with name {validation_target}, won\'t cleanup the challenge"
+            )
+
 
         destination_plugin = plugins.get(destination.plugin_name)
 
@@ -199,9 +213,7 @@ class AcmeDnsChallenge(AcmeChallenge):
         create_immediately = issuer_options.get("create_immediately", False)
         acme_client, registration = self.acme.setup_acme_client(authority)
         domains = self.acme.get_domains(issuer_options)
-        dns_provider = issuer_options.get("dns_provider", {})
-
-        if dns_provider:
+        if dns_provider := issuer_options.get("dns_provider", {}):
             for domain in domains:
                 # Currently, we only support specifying one DNS provider per certificate, even if that
                 # certificate has multiple SANs that may belong to different provid
@@ -214,9 +226,8 @@ class AcmeDnsChallenge(AcmeChallenge):
             account_number = credentials.get("account_id")
             provider_type = dns_provider.provider_type
             if provider_type == "route53" and not account_number:
-                error = "Route53 DNS Provider {} does not have an account number configured.".format(
-                    dns_provider.name
-                )
+                error = f"Route53 DNS Provider {dns_provider.name} does not have an account number configured."
+
                 current_app.logger.error(error)
                 raise InvalidConfiguration(error)
         else:

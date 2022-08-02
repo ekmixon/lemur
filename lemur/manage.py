@@ -177,16 +177,16 @@ def generate_settings():
     run and returns a string representing the default data to put into their
     settings file.
     """
-    output = CONFIG_TEMPLATE.format(
+    return CONFIG_TEMPLATE.format(
         # we use Fernet.generate_key to make sure that the key length is
         # compatible with Fernet
         encryption_key=Fernet.generate_key().decode("utf-8"),
         secret_token=base64.b64encode(os.urandom(KEY_LENGTH)).decode("utf-8"),
-        flask_secret_key=base64.b64encode(os.urandom(KEY_LENGTH)).decode("utf-8"),
+        flask_secret_key=base64.b64encode(os.urandom(KEY_LENGTH)).decode(
+            "utf-8"
+        ),
         oauth_state_token_secret=base64.b64encode(os.urandom(KEY_LENGTH)),
     )
-
-    return output
 
 
 class InitializeApp(Command):
@@ -215,9 +215,7 @@ class InitializeApp(Command):
             )
             sys.stdout.write("[+] Created 'admin' role\n")
 
-        operator_role = role_service.get_by_name("operator")
-
-        if operator_role:
+        if operator_role := role_service.get_by_name("operator"):
             sys.stdout.write("[-] Operator role already created, skipping...!\n")
         else:
             # we create an operator role
@@ -226,9 +224,7 @@ class InitializeApp(Command):
             )
             sys.stdout.write("[+] Created 'operator' role\n")
 
-        read_only_role = role_service.get_by_name("read-only")
-
-        if read_only_role:
+        if read_only_role := role_service.get_by_name("read-only"):
             sys.stdout.write("[-] Read only role already created, skipping...!\n")
         else:
             # we create an read only role
@@ -280,11 +276,9 @@ class InitializeApp(Command):
         )
 
         _DEFAULT_ROTATION_INTERVAL = "default"
-        default_rotation_interval = policy_service.get_by_name(
+        if default_rotation_interval := policy_service.get_by_name(
             _DEFAULT_ROTATION_INTERVAL
-        )
-
-        if default_rotation_interval:
+        ):
             sys.stdout.write(
                 "[-] Default rotation interval policy already created, skipping...!\n"
             )
@@ -316,8 +310,7 @@ class CreateUser(Command):
     def run(self, username, email, active, roles, password):
         role_objs = []
         for r in roles:
-            role_obj = role_service.get_by_name(r)
-            if role_obj:
+            if role_obj := role_service.get_by_name(r):
                 role_objs.append(role_obj)
             else:
                 sys.stderr.write("[!] Cannot find role {0}\n".format(r))
@@ -377,8 +370,7 @@ class CreateRole(Command):
     def run(self, name, users, description):
         user_objs = []
         for u in users:
-            user_obj = user_service.get_by_username(u)
-            if user_obj:
+            if user_obj := user_service.get_by_username(u):
                 user_objs.append(user_obj)
             else:
                 sys.stderr.write("[!] Cannot find user {0}".format(u))
@@ -488,7 +480,7 @@ def lock(path=None):
     for root, dirs, files in os.walk(os.path.join(path, "decrypted")):
         for f in files:
             source = os.path.join(root, f)
-            dest = os.path.join(dest_dir, f + ".enc")
+            dest = os.path.join(dest_dir, f"{f}.enc")
             with open(source, "rb") as in_file, open(dest, "wb") as out_file:
                 f = Fernet(key)
                 data = f.encrypt(in_file.read())
@@ -553,10 +545,10 @@ def publish_verisign_units():
 
     metrics = {}
     for item in units:
-        if item["@type"] in metrics.keys():
+        if item["@type"] in metrics:
             metrics[item["@type"]] += int(item["@remaining"])
         else:
-            metrics.update({item["@type"]: int(item["@remaining"])})
+            metrics[item["@type"]] = int(item["@remaining"])
 
     for name, value in metrics.items():
         metric = [

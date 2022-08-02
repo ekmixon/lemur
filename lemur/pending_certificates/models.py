@@ -173,5 +173,5 @@ class PendingCertificate(db.Model):
         self.rotation_policy = kwargs.get("rotation_policy")
         try:
             self.dns_provider_id = kwargs.get("dns_provider").id
-        except (AttributeError, KeyError, TypeError, Exception):
+        except Exception:
             pass

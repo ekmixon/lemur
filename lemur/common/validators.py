@@ -125,9 +125,10 @@ def dates(data):
         raise ValidationError("If validity end is specified so must validity start.")
 
     if data.get("validity_start") and data.get("validity_end"):
-        if not current_app.config.get("LEMUR_ALLOW_WEEKEND_EXPIRATION", True):
-            if is_weekend(data.get("validity_end")):
-                raise ValidationError("Validity end must not land on a weekend.")
+        if not current_app.config.get(
+            "LEMUR_ALLOW_WEEKEND_EXPIRATION", True
+        ) and is_weekend(data.get("validity_end")):
+            raise ValidationError("Validity end must not land on a weekend.")
 
         if not data["validity_start"] < data["validity_end"]:
             raise ValidationError("Validity start must be before validity end.")

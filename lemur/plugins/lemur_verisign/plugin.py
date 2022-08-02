@@ -72,7 +72,7 @@ def log_status_code(r, *args, **kwargs):
     :param kwargs:
     :return:
     """
-    metrics.send("symantec_status_code_{}".format(r.status_code), "counter", 1)
+    metrics.send(f"symantec_status_code_{r.status_code}", "counter", 1)
 
 
 def get_additional_names(options):
@@ -85,9 +85,12 @@ def get_additional_names(options):
     names = []
     # add SANs if present
     if options.get("extensions"):
-        for san in options["extensions"]["sub_alt_names"]:
-            if isinstance(san, x509.DNSName):
-                names.append(san.value)
+        names.extend(
+            san.value
+            for san in options["extensions"]["sub_alt_names"]
+            if isinstance(san, x509.DNSName)
+        )
+
     return names
 
 
@@ -280,7 +283,7 @@ class VerisignIssuerPlugin(IssuerPlugin):
             response = self.session.get(url, params={"transaction_id": order_id})
 
             if response.status_code == 200:
-                print("Rejecting certificate. TransactionId: {}".format(order_id))
+                print(f"Rejecting certificate. TransactionId: {order_id}")
 
 
 class VerisignSourcePlugin(SourcePlugin):

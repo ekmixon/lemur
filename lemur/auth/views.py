@@ -435,7 +435,7 @@ class Login(Resource):
                     return dict(token=create_token(user))
             except Exception as e:
                 current_app.logger.error("ldap error: {0}".format(e))
-                ldap_message = "ldap error: %s" % e
+                ldap_message = f"ldap error: {e}"
                 metrics.send(
                     "login", "counter", 1, metric_tags={"status": FAILURE_METRIC_STATUS}
                 )
@@ -489,8 +489,7 @@ class Ping(Resource):
         )
 
         jwks_url = current_app.config.get("PING_JWKS_URL")
-        error_code = validate_id_token(id_token, args["clientId"], jwks_url)
-        if error_code:
+        if error_code := validate_id_token(id_token, args["clientId"], jwks_url):
             return error_code
 
         user, profile = retrieve_user_memberships(
@@ -555,8 +554,7 @@ class OAuth2(Resource):
         )
 
         jwks_url = current_app.config.get("OAUTH2_JWKS_URL")
-        error_code = validate_id_token(id_token, args["clientId"], jwks_url)
-        if error_code:
+        if error_code := validate_id_token(id_token, args["clientId"], jwks_url):
             return error_code
 
         user, profile = retrieve_user(user_api_url, access_token)
@@ -624,15 +622,10 @@ class Google(Resource):
             )
             return dict(message="The supplied credentials are invalid."), 403
 
-        if user:
-            metrics.send(
-                "login", "counter", 1, metric_tags={"status": SUCCESS_METRIC_STATUS}
-            )
-            return dict(token=create_token(user))
-
         metrics.send(
-            "login", "counter", 1, metric_tags={"status": FAILURE_METRIC_STATUS}
+            "login", "counter", 1, metric_tags={"status": SUCCESS_METRIC_STATUS}
         )
+        return dict(token=create_token(user))
 
 
 class Providers(Resource):

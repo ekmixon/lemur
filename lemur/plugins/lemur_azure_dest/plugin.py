@@ -27,11 +27,6 @@ def handle_response(my_response):
     :param my_response:
     :return: :raise Exception:
     """
-    msg = {
-        200: "The request was successful.",
-        400: "Keyvault Error"
-    }
-
     try:
         data = json.loads(my_response.content)
     except ValueError:
@@ -39,6 +34,11 @@ def handle_response(my_response):
         data = {'response': 'No detailed message'}
     status_code = my_response.status_code
     if status_code > 399:
+        msg = {
+            200: "The request was successful.",
+            400: "Keyvault Error"
+        }
+
         raise Exception(f"AZURE error: {msg.get(status_code, status_code)}\n{data}")
 
     log_data = {
@@ -48,12 +48,7 @@ def handle_response(my_response):
         "response": data
     }
     current_app.logger.info(log_data)
-    if data == {'response': 'No detailed message'}:
-        # status if no data
-        return status_code
-    else:
-        #  return data from the response
-        return data
+    return status_code if data == {'response': 'No detailed message'} else data
 
 
 def get_access_token(tenant, appID, password, self):
@@ -80,8 +75,7 @@ def get_access_token(tenant, appID, password, self):
     except requests.exceptions.RequestException as e:
         current_app.logger.exception(f"AZURE: Error for POST {e}")
 
-    access_token = json.loads(response.content)["access_token"]
-    return access_token
+    return json.loads(response.content)["access_token"]
 
 
 class AzureDestinationPlugin(DestinationPlugin):

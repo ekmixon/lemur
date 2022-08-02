@@ -69,8 +69,7 @@ def upgrade():
         # look up certificate by body, if duplications are found, pick one
         stmt = text("select id from certificates where body=:body")
         stmt = stmt.bindparams(body=body)
-        root_certificate = conn.execute(stmt).fetchone()
-        if root_certificate:
+        if root_certificate := conn.execute(stmt).fetchone():
             stmt = text(
                 "update certificates set root_authority_id=:root_authority_id where id=:id"
             )

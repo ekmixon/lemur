@@ -147,12 +147,11 @@ class ACMEIssuerPlugin(IssuerPlugin):
         pem_certificate, pem_certificate_chain = self.acme.request_certificate(
             acme_client, authorizations, order
         )
-        cert = {
+        return {
             "body": "\n".join(str(pem_certificate).splitlines()),
             "chain": "\n".join(str(pem_certificate_chain).splitlines()),
             "external_id": str(pending_cert.external_id),
         }
-        return cert
 
     def get_ordered_certificates(self, pending_certs):
         self.acme = AcmeDnsHandler()
@@ -204,7 +203,7 @@ class ACMEIssuerPlugin(IssuerPlugin):
                         "order": order,
                     }
                 )
-            except (ClientError, ValueError, Exception) as e:
+            except (ClientError, Exception) as e:
                 capture_exception()
                 metrics.send(
                     "get_ordered_certificates_pending_creation_error", "counter", 1
@@ -286,7 +285,7 @@ class ACMEIssuerPlugin(IssuerPlugin):
 
         plugin_options = options.get("plugin", {}).get("plugin_options")
         if not plugin_options:
-            error = "Invalid options for lemur_acme plugin: {}".format(options)
+            error = f"Invalid options for lemur_acme plugin: {options}"
             current_app.logger.error(error)
             raise InvalidConfiguration(error)
         # Define static acme_root based off configuration variable by default. However, if user has passed a
@@ -423,7 +422,7 @@ class ACMEHttpIssuerPlugin(IssuerPlugin):
 
         plugin_options = options.get("plugin", {}).get("plugin_options")
         if not plugin_options:
-            error = "Invalid options for lemur_acme plugin: {}".format(options)
+            error = f"Invalid options for lemur_acme plugin: {options}"
             current_app.logger.error(error)
             raise InvalidConfiguration(error)
         # Define static acme_root based off configuration variable by default. However, if user has passed a

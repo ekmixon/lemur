@@ -24,34 +24,36 @@ def create_certificate_url(name):
 
 
 def create_expiration_attachments(certificates):
-    attachments = []
-    for certificate in certificates:
-        attachments.append(
-            {
-                "title": certificate["name"],
-                "title_link": create_certificate_url(certificate["name"]),
-                "color": "danger",
-                "fallback": "",
-                "fields": [
-                    {"title": "Owner", "value": certificate["owner"], "short": True},
-                    {
-                        "title": "Expires",
-                        "value": arrow.get(certificate["validityEnd"]).format(
-                            "dddd, MMMM D, YYYY"
-                        ),
-                        "short": True,
-                    },
-                    {
-                        "title": "Endpoints Detected",
-                        "value": len(certificate["endpoints"]),
-                        "short": True,
-                    },
-                ],
-                "text": "",
-                "mrkdwn_in": ["text"],
-            }
-        )
-    return attachments
+    return [
+        {
+            "title": certificate["name"],
+            "title_link": create_certificate_url(certificate["name"]),
+            "color": "danger",
+            "fallback": "",
+            "fields": [
+                {
+                    "title": "Owner",
+                    "value": certificate["owner"],
+                    "short": True,
+                },
+                {
+                    "title": "Expires",
+                    "value": arrow.get(certificate["validityEnd"]).format(
+                        "dddd, MMMM D, YYYY"
+                    ),
+                    "short": True,
+                },
+                {
+                    "title": "Endpoints Detected",
+                    "value": len(certificate["endpoints"]),
+                    "short": True,
+                },
+            ],
+            "text": "",
+            "mrkdwn_in": ["text"],
+        }
+        for certificate in certificates
+    ]
 
 
 def create_rotation_attachments(certificate):

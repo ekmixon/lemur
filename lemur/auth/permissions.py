@@ -23,12 +23,10 @@ CertificateOwnerNeed = partial(CertificateOwner, "role")
 class SensitiveDomainPermission(Permission):
     def __init__(self):
         needs = [RoleNeed("admin")]
-        sensitive_domain_roles = current_app.config.get("SENSITIVE_DOMAIN_ROLES", [])
-
-        if sensitive_domain_roles:
-            for role in sensitive_domain_roles:
-                needs.append(RoleNeed(role))
-
+        if sensitive_domain_roles := current_app.config.get(
+            "SENSITIVE_DOMAIN_ROLES", []
+        ):
+            needs.extend(RoleNeed(role) for role in sensitive_domain_roles)
         super(SensitiveDomainPermission, self).__init__(*needs)
 
 
@@ -69,7 +67,5 @@ AuthorityOwnerNeed = partial(AuthorityOwner, "role")
 class AuthorityPermission(Permission):
     def __init__(self, authority_id, roles):
         needs = [RoleNeed("admin"), AuthorityCreatorNeed(str(authority_id))]
-        for r in roles:
-            needs.append(AuthorityOwnerNeed(str(r)))
-
+        needs.extend(AuthorityOwnerNeed(str(r)) for r in roles)
         super(AuthorityPermission, self).__init__(*needs)

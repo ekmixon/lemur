@@ -33,10 +33,11 @@ def get_sans_from_csr(data):
         alt_names = request.extensions.get_extension_for_class(
             x509.SubjectAlternativeName
         )
-        for alt_name in alt_names.value:
-            sub_alt_names.append(
-                {"nameType": type(alt_name).__name__, "value": alt_name.value}
-            )
+        sub_alt_names.extend(
+            {"nameType": type(alt_name).__name__, "value": alt_name.value}
+            for alt_name in alt_names.value
+        )
+
     except x509.ExtensionNotFound:
         pass
 

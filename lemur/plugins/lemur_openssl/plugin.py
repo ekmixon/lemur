@@ -75,7 +75,7 @@ def create_pkcs12(cert, chain, p12_tmp, key, alias, passphrase):
                     "-out",
                     p12_tmp,
                     "-password",
-                    "pass:{}".format(passphrase),
+                    f"pass:{passphrase}",
                 ]
             )
 
@@ -122,28 +122,25 @@ class OpenSSLExportPlugin(ExportPlugin):
         :param options:
         :param kwargs:
         """
-        if self.get_option("passphrase", options):
-            passphrase = self.get_option("passphrase", options)
-        else:
-            passphrase = get_psuedo_random_string()
+        passphrase = (
+            self.get_option("passphrase", options) or get_psuedo_random_string()
+        )
 
-        if self.get_option("alias", options):
-            alias = self.get_option("alias", options)
-        else:
-            alias = common_name(parse_certificate(body))
+        alias = self.get_option("alias", options) or common_name(
+            parse_certificate(body)
+        )
 
         type = self.get_option("type", options)
 
         with mktemppath() as output_tmp:
-            if type == "PKCS12 (.p12)":
-                if not key:
-                    raise Exception("Private Key required by {0}".format(type))
-
-                create_pkcs12(body, chain, output_tmp, key, alias, passphrase)
-                extension = "p12"
-            else:
+            if type != "PKCS12 (.p12)":
                 raise Exception("Unable to export, unsupported type: {0}".format(type))
 
+            if not key:
+                raise Exception("Private Key required by {0}".format(type))
+
+            create_pkcs12(body, chain, output_tmp, key, alias, passphrase)
+            extension = "p12"
             with open(output_tmp, "rb") as f:
                 raw = f.read()
 

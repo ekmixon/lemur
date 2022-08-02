@@ -77,8 +77,7 @@ def delete(destination_id):
 
     :param destination_id: Lemur assigned ID
     """
-    destination = get(destination_id)
-    if destination:
+    if destination := get(destination_id):
         # remove association of this source from all valid certificates
         certificates = certificate_service.get_all_valid_certificates_with_destination(destination_id)
         for certificate in certificates:
@@ -124,9 +123,7 @@ def get_all():
 
 def render(args):
     filt = args.pop("filter")
-    certificate_id = args.pop("certificate_id", None)
-
-    if certificate_id:
+    if certificate_id := args.pop("certificate_id", None):
         query = database.session_query(Destination).join(
             Certificate, Destination.certificate
         )

@@ -166,8 +166,7 @@ def _has_dns_propagated(name, token, domain):
         dns_resolver.nameservers = [domain]
         dns_response = dns_resolver.query(name, "TXT")
         for rdata in dns_response:
-            for txt_record in rdata.strings:
-                txt_records.append(txt_record.decode("utf-8"))
+            txt_records.extend(txt_record.decode("utf-8") for txt_record in rdata.strings)
     except dns.exception.DNSException:
         function = sys._getframe().f_code.co_name
         metrics.send(f"{function}.fail", "counter", 1)
@@ -192,7 +191,7 @@ def wait_for_dns_change(change_id, account_number=None):
     fqdn, token = change_id
     number_of_attempts = 20
     nameserver = get_authoritative_nameserver(fqdn)
-    for attempts in range(0, number_of_attempts):
+    for _ in range(number_of_attempts):
         status = _has_dns_propagated(fqdn, token, nameserver)
         function = sys._getframe().f_code.co_name
         log_data = {
@@ -208,7 +207,7 @@ def wait_for_dns_change(change_id, account_number=None):
         time.sleep(10)
     if status:
         nameserver = get_public_authoritative_nameserver()
-        for attempts in range(0, number_of_attempts):
+        for _ in range(number_of_attempts):
             status = _has_dns_propagated(fqdn, token, nameserver)
             log_data = {
                 "function": function,
@@ -247,12 +246,8 @@ def get_zone_name(domain, account_number):
     zones = get_zones(account_number)
     zone_name = ""
     for z in zones:
-        if domain.endswith(z):
-            # Find the most specific zone possible for the domain
-            # Ex: If fqdn is a.b.c.com, there is a zone for c.com,
-            # and a zone for b.c.com, we want to use b.c.com.
-            if z.count(".") > zone_name.count("."):
-                zone_name = z
+        if domain.endswith(z) and z.count(".") > zone_name.count("."):
+            zone_name = z
     if not zone_name:
         function = sys._getframe().f_code.co_name
         metrics.send(f"{function}.fail", "counter", 1)
@@ -306,8 +301,7 @@ def create_txt_record(domain, token, account_number):
         }
         current_app.logger.debug(log_data)
 
-    change_id = (fqdn, token)
-    return change_id
+    return fqdn, token
 
 
 def delete_txt_record(change_id, account_number, domain, token):
@@ -424,9 +418,9 @@ def get_authoritative_nameserver(domain):
             function = sys._getframe().f_code.co_name
             metrics.send(f"{function}.error", "counter", 1)
             if rcode == dns.rcode.NXDOMAIN:
-                raise Exception("%s does not exist." % sub)
+                raise Exception(f"{sub} does not exist.")
             else:
-                raise Exception("Error %s" % dns.rcode.to_text(rcode))
+                raise Exception(f"Error {dns.rcode.to_text(rcode)}")
 
         if len(response.authority) > 0:
             rrset = response.authority[0]

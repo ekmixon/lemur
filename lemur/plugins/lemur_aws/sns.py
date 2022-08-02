@@ -16,13 +16,18 @@ from lemur.plugins.utils import get_plugin_option
 
 def publish(topic_arn, certificates, notification_type, options, **kwargs):
     sns_client = boto3.client("sns", **kwargs)
-    message_ids = {}
     subject = "Lemur: {0} Notification".format(notification_type.capitalize())
-    for certificate in certificates:
-        message_ids[certificate["name"]] = publish_single(sns_client, topic_arn, certificate, notification_type,
-                                                          subject, options)
-
-    return message_ids
+    return {
+        certificate["name"]: publish_single(
+            sns_client,
+            topic_arn,
+            certificate,
+            notification_type,
+            subject,
+            options,
+        )
+        for certificate in certificates
+    }
 
 
 def publish_single(sns_client, topic_arn, certificate, notification_type, subject, options):

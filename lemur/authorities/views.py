@@ -484,10 +484,11 @@ class CertificateAuthority(AuthenticatedResource):
            :statuscode 403: unauthenticated
         """
         cert = certificate_service.get(certificate_id)
-        if not cert:
-            return dict(message="Certificate not found."), 404
-
-        return cert.authority
+        return (
+            cert.authority
+            if cert
+            else (dict(message="Certificate not found."), 404)
+        )
 
 
 class AuthorityVisualizations(AuthenticatedResource):

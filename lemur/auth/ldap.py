@@ -30,10 +30,7 @@ class LdapPrincipal:
         self.ldap_principal = args["username"]
         self.ldap_email_domain = current_app.config.get("LDAP_EMAIL_DOMAIN", None)
         if "@" not in self.ldap_principal:
-            self.ldap_principal = "%s@%s" % (
-                self.ldap_principal,
-                self.ldap_email_domain,
-            )
+            self.ldap_principal = f"{self.ldap_principal}@{self.ldap_email_domain}"
         self.ldap_username = args["username"]
         if "@" in self.ldap_username:
             self.ldap_username = args["username"].split("@")[0]
@@ -95,10 +92,11 @@ class LdapPrincipal:
         if not self.ldap_principal:
             return None
 
-        if self.ldap_required_group:
-            # ensure the user has the required group in their group list
-            if self.ldap_required_group not in self.ldap_groups:
-                return None
+        if (
+            self.ldap_required_group
+            and self.ldap_required_group not in self.ldap_groups
+        ):
+            return None
 
         roles = set()
         if self.ldap_default_role:
@@ -124,8 +122,7 @@ class LdapPrincipal:
             return roles
 
         for ldap_group_name, role_name in self.ldap_groups_to_roles.items():
-            role = role_service.get_by_name(role_name)
-            if role:
+            if role := role_service.get_by_name(role_name):
                 if ldap_group_name in self.ldap_groups:
                     current_app.logger.debug(
                         "assigning role {0} to ldap user {1}".format(
@@ -145,10 +142,10 @@ class LdapPrincipal:
         raise an exception on error.
         """
         self._bind()
-        roles = self._authorize()
-        if not roles:
+        if roles := self._authorize():
+            return self._update_user(roles)
+        else:
             raise Exception("ldap authorization failed")
-        return self._update_user(roles)
 
     def _bind(self):
         """
@@ -157,11 +154,8 @@ class LdapPrincipal:
         raise an exception on error.
         """
         if "@" not in self.ldap_principal:
-            self.ldap_principal = "%s@%s" % (
-                self.ldap_principal,
-                self.ldap_email_domain,
-            )
-        ldap_filter = "userPrincipalName=%s" % self.ldap_principal
+            self.ldap_principal = f"{self.ldap_principal}@{self.ldap_email_domain}"
+        ldap_filter = f"userPrincipalName={self.ldap_principal}"
 
         # query ldap for auth
         try:

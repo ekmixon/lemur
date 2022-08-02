@@ -27,11 +27,7 @@ def filter_none(kwargs):
     :param kwargs: Dict to filter
     :return: Dict without any 'None' values
     """
-    n_kwargs = {}
-    for k, v in kwargs.items():
-        if v:
-            n_kwargs[k] = v
-    return n_kwargs
+    return {k: v for k, v in kwargs.items() if v}
 
 
 def session_query(model):
@@ -118,9 +114,11 @@ def find_any(query, model, kwargs):
     :param kwargs:
     :return:
     """
-    or_args = []
-    for attr, value in kwargs.items():
-        or_args.append(or_(get_model_column(model, attr) == value))
+    or_args = [
+        or_(get_model_column(model, attr) == value)
+        for attr, value in kwargs.items()
+    ]
+
     exprs = or_(*or_args)
     return query.filter(exprs)
 
@@ -201,7 +199,7 @@ def filter(query, model, terms):
     :return:
     """
     column = get_model_column(model, underscore(terms[0]))
-    return query.filter(column.ilike("%{}%".format(terms[1])))
+    return query.filter(column.ilike(f"%{terms[1]}%"))
 
 
 def sort(query, model, field, direction):
@@ -284,7 +282,7 @@ def get_count(q):
     disable_group_by = False
     if len(q._entities) > 1:
         # currently support only one entity
-        raise Exception("only one entity is supported for get_count, got: %s" % q)
+        raise Exception(f"only one entity is supported for get_count, got: {q}")
     entity = q._entities[0]
     if hasattr(entity, "column"):
         # _ColumnEntity has column attr - on case: query(Model.column)...

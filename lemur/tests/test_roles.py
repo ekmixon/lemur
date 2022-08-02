@@ -126,9 +126,10 @@ def test_role_put_with_data_and_user(client, session):
     session.commit()
 
     headers = {
-        "Authorization": "Basic " + create_token(user),
+        "Authorization": f"Basic {create_token(user)}",
         "Content-Type": "application/json",
     }
+
 
     data = {
         "users": [{"id": user1.id}, {"id": user.id}],
@@ -239,6 +240,8 @@ def test_role_list_patch(client, token, status):
 
 def test_sensitive_filter(client):
     resp = client.get(
-        api.url_for(RolesList) + "?filter=password;a", headers=VALID_ADMIN_HEADER_TOKEN
+        f"{api.url_for(RolesList)}?filter=password;a",
+        headers=VALID_ADMIN_HEADER_TOKEN,
     )
+
     assert "'password' is not sortable or filterable" in resp.json["message"]

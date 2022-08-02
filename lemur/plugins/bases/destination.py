@@ -39,9 +39,7 @@ class ExportDestinationPlugin(DestinationPlugin):
         return self.default_options + self.additional_options
 
     def export(self, body, private_key, cert_chain, options):
-        export_plugin = self.get_option("exportPlugin", options)
-
-        if export_plugin:
+        if export_plugin := self.get_option("exportPlugin", options):
             plugin = plugins.get(export_plugin["slug"])
             extension, passphrase, data = plugin.export(
                 body, cert_chain, private_key, export_plugin["plugin_options"]

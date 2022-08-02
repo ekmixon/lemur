@@ -63,12 +63,7 @@ class IPlugin(local):
         If ``project`` is passed, it will limit the scope to that project.
         >>> plugin.is_enabled()
         """
-        if not self.enabled:
-            return False
-        if not self.can_disable:
-            return True
-
-        return True
+        return bool(self.enabled)
 
     def get_conf_key(self):
         """
@@ -117,10 +112,7 @@ class IPlugin(local):
             return None
 
         value = user_opt.get("value", user_opt.get("default"))
-        if value is None:
-            return None
-
-        return self.validate_option_value(name, value)
+        return None if value is None else self.validate_option_value(name, value)
 
     def validate_option_value(self, option_name, value):
         class_opt = self.get_server_options(option_name)
@@ -144,16 +136,10 @@ class IPlugin(local):
 
     def get_server_options(self, name):
         class_options = getattr(self, "options", [])
-        for o in class_options:
-            if o.get("name") == name:
-                return o
-        return None
+        return next((o for o in class_options if o.get("name") == name), None)
 
     def get_user_option(self, name, options):
-        for o in options:
-            if o.get("name") == name:
-                return o
-        return None
+        return next((o for o in options if o.get("name") == name), None)
 
 
 class Plugin(IPlugin):

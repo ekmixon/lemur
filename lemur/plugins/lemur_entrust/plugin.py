@@ -23,10 +23,11 @@ def log_status_code(r, *args, **kwargs):
     """
     if r.status_code != 200:
         log_data = {
-            "reason": (r.reason if r.reason else ""),
+            "reason": r.reason or "",
             "status_code": r.status_code,
-            "url": (r.url if r.url else ""),
+            "url": r.url or "",
         }
+
         metrics.send(f"entrust_status_code_{r.status_code}", "counter", 1)
         current_app.logger.info(log_data)
 
@@ -40,9 +41,7 @@ def determine_end_date(end_date):
     # ENTRUST only allows 13 months of max certificate duration
     max_validity_end = arrow.utcnow().shift(years=1, months=+1)
 
-    if not end_date:
-        end_date = max_validity_end
-    elif end_date > max_validity_end:
+    if not end_date or end_date > max_validity_end:
         end_date = max_validity_end
     return end_date.format('YYYY-MM-DD')
 
@@ -75,16 +74,15 @@ def process_options(options, client_id):
         "requesterPhone": current_app.config.get("ENTRUST_PHONE")
     }
 
-    data = {
+    return {
         "signingAlg": "SHA-2",
         "eku": "SERVER_AND_CLIENT_AUTH",
         "certType": product_type,
         "certExpiryDate": validity_end,
         "tracking": tracking_data,
         "org": options.get("organization"),
-        "clientId": client_id
+        "clientId": client_id,
     }
-    return data
 
 
 @retry(stop_max_attempt_number=5, wait_fixed=1000)
@@ -130,15 +128,6 @@ def handle_response(my_response):
     :param my_response:
     :return: :raise Exception:
     """
-    msg = {
-        200: "The request had the validateOnly flag set to true and validation was successful.",
-        201: "Certificate created",
-        202: "Request accepted and queued for approval",
-        400: "Invalid request parameters",
-        404: "Unknown jobId",
-        429: "Too many requests"
-    }
-
     try:
         data = json.loads(my_response.content)
     except ValueError:
@@ -146,6 +135,15 @@ def handle_response(my_response):
         data = {'response': 'No detailed message'}
     status_code = my_response.status_code
     if status_code > 399:
+        msg = {
+            200: "The request had the validateOnly flag set to true and validation was successful.",
+            201: "Certificate created",
+            202: "Request accepted and queued for approval",
+            400: "Invalid request parameters",
+            404: "Unknown jobId",
+            429: "Too many requests"
+        }
+
         raise Exception(f"ENTRUST error: {msg.get(status_code, status_code)}\n{data['errors']}")
 
     log_data = {
@@ -155,12 +153,7 @@ def handle_response(my_response):
         "response": data
     }
     current_app.logger.info(log_data)
-    if data == {'response': 'No detailed message'}:
-        # status if no data
-        return status_code
-    else:
-        #  return data from the response
-        return data
+    return status_code if data == {'response': 'No detailed message'} else data
 
 
 @retry(stop_max_attempt_number=3, wait_fixed=5000)

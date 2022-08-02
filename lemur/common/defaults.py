@@ -44,11 +44,7 @@ def certificate_name(common_name, issuer, not_before, not_after, san):
     :rtype: str
     :return:
     """
-    if san:
-        t = SAN_NAMING_TEMPLATE
-    else:
-        t = DEFAULT_NAMING_TEMPLATE
-
+    t = SAN_NAMING_TEMPLATE if san else DEFAULT_NAMING_TEMPLATE
     temp = t.format(
         subject=common_name,
         issuer=issuer.replace(" ", ""),
@@ -73,9 +69,7 @@ def common_name(cert):
     """
     try:
         subject_oid = cert.subject.get_attributes_for_oid(x509.OID_COMMON_NAME)
-        if len(subject_oid) > 0:
-            return subject_oid[0].value.strip()
-        return None
+        return subject_oid[0].value.strip() if len(subject_oid) > 0 else None
     except Exception as e:
         capture_exception()
         current_app.logger.error(
@@ -96,10 +90,7 @@ def organization(cert):
     """
     try:
         o = cert.subject.get_attributes_for_oid(x509.OID_ORGANIZATION_NAME)
-        if not o:
-            return None
-
-        return o[0].value.strip()
+        return o[0].value.strip() if o else None
     except Exception as e:
         capture_exception()
         current_app.logger.error("Unable to get organization! {0}".format(e))
@@ -113,10 +104,7 @@ def organizational_unit(cert):
     """
     try:
         ou = cert.subject.get_attributes_for_oid(x509.OID_ORGANIZATIONAL_UNIT_NAME)
-        if not ou:
-            return None
-
-        return ou[0].value.strip()
+        return ou[0].value.strip() if ou else None
     except Exception as e:
         capture_exception()
         current_app.logger.error("Unable to get organizational unit! {0}".format(e))
@@ -130,10 +118,7 @@ def country(cert):
     """
     try:
         c = cert.subject.get_attributes_for_oid(x509.OID_COUNTRY_NAME)
-        if not c:
-            return None
-
-        return c[0].value.strip()
+        return c[0].value.strip() if c else None
     except Exception as e:
         capture_exception()
         current_app.logger.error("Unable to get country! {0}".format(e))
@@ -147,10 +132,7 @@ def state(cert):
     """
     try:
         s = cert.subject.get_attributes_for_oid(x509.OID_STATE_OR_PROVINCE_NAME)
-        if not s:
-            return None
-
-        return s[0].value.strip()
+        return s[0].value.strip() if s else None
     except Exception as e:
         capture_exception()
         current_app.logger.error("Unable to get state! {0}".format(e))
@@ -164,10 +146,7 @@ def location(cert):
     """
     try:
         loc = cert.subject.get_attributes_for_oid(x509.OID_LOCALITY_NAME)
-        if not loc:
-            return None
-
-        return loc[0].value.strip()
+        return loc[0].value.strip() if loc else None
     except Exception as e:
         capture_exception()
         current_app.logger.error("Unable to get location! {0}".format(e))
@@ -186,8 +165,7 @@ def domains(cert):
     try:
         ext = cert.extensions.get_extension_for_oid(x509.OID_SUBJECT_ALTERNATIVE_NAME)
         entries = ext.value.get_values_for_type(x509.DNSName)
-        for entry in entries:
-            domains.append(entry)
+        domains.extend(iter(entries))
     except x509.ExtensionNotFound:
         if current_app.config.get("LOG_SSL_SUBJ_ALT_NAME_ERRORS", True):
             capture_exception()
@@ -227,10 +205,13 @@ def is_wildcard(cert):
     :return: Bool
     """
     d = domains(cert)
-    if len(d) == 1 and d[0][0:1] == "*":
+    if len(d) == 1 and d[0][:1] == "*":
         return True
 
-    if cert.subject.get_attributes_for_oid(x509.OID_COMMON_NAME)[0].value[0:1] == "*":
+    if (
+        cert.subject.get_attributes_for_oid(x509.OID_COMMON_NAME)[0].value[:1]
+        == "*"
+    ):
         return True
 
 

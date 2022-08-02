@@ -31,7 +31,7 @@ def create_truststore(cert, chain, alias, passphrase):
     entries = []
     for idx, cert_bytes in enumerate(cert_chain_as_der(cert, chain)):
         # The original cert gets name <ALIAS>_cert, first chain element is <ALIAS>_cert_1, etc.
-        cert_alias = alias + "_cert" + ("_{}".format(idx) if idx else "")
+        cert_alias = f"{alias}_cert" + (f"_{idx}" if idx else "")
         entries.append(TrustedCertEntry.new(cert_alias, cert_bytes))
 
     return KeyStore.new("jks", entries).saves(passphrase)
@@ -80,15 +80,13 @@ class JavaTruststoreExportPlugin(ExportPlugin):
         Generates a Java Truststore
         """
 
-        if self.get_option("alias", options):
-            alias = self.get_option("alias", options)
-        else:
-            alias = common_name(parse_certificate(body))
+        alias = self.get_option("alias", options) or common_name(
+            parse_certificate(body)
+        )
 
-        if self.get_option("passphrase", options):
-            passphrase = self.get_option("passphrase", options)
-        else:
-            passphrase = Fernet.generate_key().decode("utf-8")
+        passphrase = self.get_option(
+            "passphrase", options
+        ) or Fernet.generate_key().decode("utf-8")
 
         raw = create_truststore(body, chain, alias, passphrase)
 
@@ -125,15 +123,13 @@ class JavaKeystoreExportPlugin(ExportPlugin):
         Generates a Java Keystore
         """
 
-        if self.get_option("passphrase", options):
-            passphrase = self.get_option("passphrase", options)
-        else:
-            passphrase = Fernet.generate_key().decode("utf-8")
+        passphrase = self.get_option(
+            "passphrase", options
+        ) or Fernet.generate_key().decode("utf-8")
 
-        if self.get_option("alias", options):
-            alias = self.get_option("alias", options)
-        else:
-            alias = common_name(parse_certificate(body))
+        alias = self.get_option("alias", options) or common_name(
+            parse_certificate(body)
+        )
 
         raw = create_keystore(body, chain, key, alias, passphrase)
 

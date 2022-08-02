@@ -44,18 +44,18 @@ def fqdn(deployment, validity):
     rows = []
 
     for cert in fqdns(validity=validity, deployment=deployment).all():
-        for domain in cert.domains:
-            rows.append(
-                [
-                    domain.name,
-                    ".".join(domain.name.split(".")[1:]),
-                    cert.issuer,
-                    cert.owner,
-                    cert.not_after,
-                    cert.validity_range.days,
-                    cert.validity_remaining.days,
-                ]
-            )
+        rows.extend(
+            [
+                domain.name,
+                ".".join(domain.name.split(".")[1:]),
+                cert.issuer,
+                cert.owner,
+                cert.not_after,
+                cert.validity_range.days,
+                cert.validity_remaining.days,
+            ]
+            for domain in cert.domains
+        )
 
     print(tabulate(rows, headers=headers))
 
@@ -77,9 +77,15 @@ def expiring(ttl, deployment):
     rows = []
 
     for cert in expiring_certificates(ttl=ttl, deployment=deployment).all():
-        for endpoint in cert.endpoints:
-            rows.append(
-                [cert.cn, cert.owner, cert.issuer, cert.not_after, endpoint.dnsname]
-            )
+        rows.extend(
+            [
+                cert.cn,
+                cert.owner,
+                cert.issuer,
+                cert.not_after,
+                endpoint.dnsname,
+            ]
+            for endpoint in cert.endpoints
+        )
 
     print(tabulate(rows, headers=headers))

@@ -64,11 +64,7 @@ def get_sequence(name):
         return name, None
 
     # we might have a date at the end of our name
-    if len(parts[-1]) == 8:
-        return name, None
-
-    root = "-".join(parts[:-1])
-    return root, seq
+    return (name, None) if len(parts[-1]) == 8 else ("-".join(parts[:-1]), seq)
 
 
 def get_or_increase_name(name, serial):
@@ -335,25 +331,25 @@ class Certificate(db.Model):
             return True
 
     @expired.expression
-    def expired(cls):
-        return case([(cls.not_after <= arrow.utcnow(), True)], else_=False)
+    def expired(self):
+        return case([(self.not_after <= arrow.utcnow(), True)], else_=False)
 
     @hybrid_property
     def revoked(self):
-        if "revoked" == self.status:
+        if self.status == "revoked":
             return True
 
     @revoked.expression
-    def revoked(cls):
-        return case([(cls.status == "revoked", True)], else_=False)
+    def revoked(self):
+        return case([(self.status == "revoked", True)], else_=False)
 
     @hybrid_property
     def has_private_key(self):
         return self.private_key is not None
 
     @has_private_key.expression
-    def has_private_key(cls):
-        return case([(cls.private_key.is_(None), True)], else_=False)
+    def has_private_key(self):
+        return case([(self.private_key.is_(None), True)], else_=False)
 
     @hybrid_property
     def in_rotation_window(self):
@@ -369,14 +365,20 @@ class Certificate(db.Model):
             return True
 
     @in_rotation_window.expression
-    def in_rotation_window(cls):
+    def in_rotation_window(self):
         """
         Determines if a certificate is available for rotation based
         on the rotation policy associated.
         :return:
         """
         return case(
-            [(extract("day", cls.not_after - func.now()) <= RotationPolicy.days, True)],
+            [
+                (
+                    extract("day", self.not_after - func.now())
+                    <= RotationPolicy.days,
+                    True,
+                )
+            ],
             else_=False,
         )
 

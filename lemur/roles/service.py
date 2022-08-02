@@ -18,12 +18,14 @@ from lemur.logs import service as log_service
 
 
 def warn_user_updates(role_name, current_users, new_users):
-    removed_users = list(u.username for u in set(current_users) - set(new_users))
-    if removed_users:
+    if removed_users := [
+        u.username for u in set(current_users) - set(new_users)
+    ]:
         current_app.logger.warning(f"Removed {role_name} role for {removed_users}")
 
-    added_users = list(u.username for u in set(new_users) - set(current_users))
-    if added_users:
+    if added_users := [
+        u.username for u in set(new_users) - set(current_users)
+    ]:
         current_app.logger.warning(f"Added {role_name} role for {added_users}")
 
 
@@ -155,8 +157,6 @@ def render(args):
 
 
 def get_or_create(role_name, description):
-    role = get_by_name(role_name)
-    if not role:
-        role = create(name=role_name, description=description)
-
-    return role
+    return get_by_name(role_name) or create(
+        name=role_name, description=description
+    )

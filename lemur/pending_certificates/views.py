@@ -315,16 +315,15 @@ class PendingCertificates(AuthenticatedResource):
                 )
 
         for destination in data["destinations"]:
-            if destination.plugin.requires_key:
-                if not pending_cert.private_key:
-                    return (
-                        dict(
-                            message="Unable to add destination: {0}. Certificate does not have required private key.".format(
-                                destination.label
-                            )
-                        ),
-                        400,
-                    )
+            if destination.plugin.requires_key and not pending_cert.private_key:
+                return (
+                    dict(
+                        message="Unable to add destination: {0}. Certificate does not have required private key.".format(
+                            destination.label
+                        )
+                    ),
+                    400,
+                )
 
         pending_cert = service.update(pending_certificate_id, **data)
         return pending_cert

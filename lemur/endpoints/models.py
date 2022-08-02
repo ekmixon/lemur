@@ -33,8 +33,8 @@ class Cipher(db.Model):
         return self.name in BAD_CIPHERS
 
     @deprecated.expression
-    def deprecated(cls):
-        return case([(cls.name in BAD_CIPHERS, True)], else_=False)
+    def deprecated(self):
+        return case([(self.name in BAD_CIPHERS, True)], else_=False)
 
 
 class Policy(db.Model):
@@ -68,18 +68,17 @@ class Endpoint(db.Model):
 
     @property
     def issues(self):
-        issues = []
+        issues = [
+            {
+                "name": "deprecated cipher",
+                "value": "{0} has been deprecated consider removing it.".format(
+                    cipher.name
+                ),
+            }
+            for cipher in self.policy.ciphers
+            if cipher.deprecated
+        ]
 
-        for cipher in self.policy.ciphers:
-            if cipher.deprecated:
-                issues.append(
-                    {
-                        "name": "deprecated cipher",
-                        "value": "{0} has been deprecated consider removing it.".format(
-                            cipher.name
-                        ),
-                    }
-                )
 
         if self.certificate.expired:
             issues.append(

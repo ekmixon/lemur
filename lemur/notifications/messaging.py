@@ -50,18 +50,14 @@ def get_certificates(exclude=None):
 
     exclude_conditions = []
     if exclude:
-        for e in exclude:
-            exclude_conditions.append(~Certificate.name.ilike("%{}%".format(e)))
-
+        exclude_conditions.extend(~Certificate.name.ilike(f"%{e}%") for e in exclude)
         q = q.filter(and_(*exclude_conditions))
 
-    certs = []
-
-    for c in windowed_query(q, Certificate.id, 10000):
-        if needs_notification(c):
-            certs.append(c)
-
-    return certs
+    return [
+        c
+        for c in windowed_query(q, Certificate.id, 10000)
+        if needs_notification(c)
+    ]
 
 
 def get_certificates_for_security_summary_email(exclude=None):
@@ -84,9 +80,7 @@ def get_certificates_for_security_summary_email(exclude=None):
 
     exclude_conditions = []
     if exclude:
-        for e in exclude:
-            exclude_conditions.append(~Certificate.name.ilike("%{}%".format(e)))
-
+        exclude_conditions.extend(~Certificate.name.ilike(f"%{e}%") for e in exclude)
         q = q.filter(and_(*exclude_conditions))
 
     certs = []
@@ -140,11 +134,11 @@ def get_eligible_certificates(exclude=None):
         notification_groups = []
 
         for certificate in items:
-            notifications = needs_notification(certificate)
-
-            if notifications:
-                for notification in notifications:
-                    notification_groups.append((notification, certificate))
+            if notifications := needs_notification(certificate):
+                notification_groups.extend(
+                    (notification, certificate)
+                    for notification in notifications
+                )
 
         # group by notification
         for notification, items in groupby(sorted(notification_groups, key=lambda x: x[0].label), lambda x: x[0].label):
@@ -161,9 +155,11 @@ def get_eligible_security_summary_certs(exclude=None):
     # group by expiration interval
     for interval, interval_certs in groupby(sorted(all_certs, key=lambda x: (x.not_after - now).days),
                                             lambda x: (x.not_after - now).days):
-        cert_data = []
-        for certificate in interval_certs:
-            cert_data.append(certificate_notification_output_schema.dump(certificate).data)
+        cert_data = [
+            certificate_notification_output_schema.dump(certificate).data
+            for certificate in interval_certs
+        ]
+
         interval_data = {"interval": interval, "certificates": cert_data}
         message_data.append(interval_data)
 
@@ -273,10 +269,7 @@ def send_expiration_notifications(exclude, disabled_notification_plugins):
                 if notification.plugin.slug != "email-notification":
                     # If the plugin wasn't email, it only sent one notification, so set the success/failure
                     # to the correct value (1) at this point
-                    if success:
-                        success, failure = 1, 0
-                    else:
-                        success, failure = 0, 1
+                    success, failure = (1, 0) if success else (0, 1)
                     # If email-notification plugin is disabled, we won't sent these extra notifications.
                     if "email-notification" not in disabled_notification_plugins:
                         if send_default_notification(
@@ -429,10 +422,10 @@ def send_pending_failure_notification(
 
     email_recipients = []
     if notify_owner:
-        email_recipients = email_recipients + [data["owner"]]
+        email_recipients += [data["owner"]]
 
     if notify_security:
-        email_recipients = email_recipients + data["security_email"]
+        email_recipients += data["security_email"]
 
     return send_default_notification("failed", data, email_recipients, pending_cert)
 
@@ -464,10 +457,7 @@ def needs_notification(certificate):
         elif unit == "months":
             interval *= 30
 
-        elif unit == "days":  # it's nice to be explicit about the base unit
-            pass
-
-        else:
+        elif unit != "days":
             raise Exception(
                 f"Invalid base unit for expiration interval: {unit}"
             )
@@ -539,9 +529,11 @@ def send_expiring_deployed_certificate_notifications(certificates):
         for certificate, domains_and_ports in owner_certs:
             cert_data = certificate_notification_output_schema.dump(certificate).data
             # we add the domain info into the cert dump in order to reuse existing common email formatting logic
-            domain_and_port_data = []
-            for domain, ports in domains_and_ports.items():
-                domain_and_port_data.append({"domain": domain, "ports": ports})
+            domain_and_port_data = [
+                {"domain": domain, "ports": ports}
+                for domain, ports in domains_and_ports.items()
+            ]
+
             cert_data["domains_and_ports"] = domain_and_port_data
             notification_data.append(cert_data)
         if send_default_notification(notification_type, notification_data, email_recipients):

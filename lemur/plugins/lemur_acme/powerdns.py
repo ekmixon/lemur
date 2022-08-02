@@ -123,7 +123,7 @@ def create_txt_record(domain, token, account_number):
     }
 
     # Create new record
-    domain_id = domain + "."
+    domain_id = f"{domain}."
     records = [Record({'name': domain_id, 'content': f"\"{token}\"", 'disabled': False})]
 
     # Get current records
@@ -142,8 +142,7 @@ def create_txt_record(domain, token, account_number):
         log_data["message"] = "Unable to create TXT record(s)"
         current_app.logger.debug(log_data)
 
-    change_id = (domain, token)
-    return change_id
+    return domain, token
 
 
 def wait_for_dns_change(change_id, account_number=None):
@@ -160,7 +159,7 @@ def wait_for_dns_change(change_id, account_number=None):
     zone_name = _get_zone_name(domain, account_number)
     nameserver = dnsutil.get_authoritative_nameserver(zone_name)
     record_found = False
-    for attempts in range(0, number_of_attempts):
+    for _ in range(number_of_attempts):
         txt_records = dnsutil.get_dns_records(domain, "TXT", nameserver)
         for txt_record in txt_records:
             if txt_record == token:
@@ -224,9 +223,6 @@ def delete_txt_record(change_id, account_number, domain, token):
         current_app.logger.debug(log_data)
         return
 
-    # The record to delete has been found AND there are other tokens set on the same domain
-    # Since we only want to delete one token value from the RRSet, we need to use the Patch command to
-    # overwrite the current RRSet with the existing records.
     elif new_records:
         try:
             _patch_txt_records(domain, account_number, new_records)
@@ -238,13 +234,11 @@ def delete_txt_record(change_id, account_number, domain, token):
             log_data["message"] = "Unable to delete TXT record: patching exception"
             current_app.logger.debug(log_data)
 
-    # The record to delete has been found AND there are no other token values set on the same domain
-    # Use the Delete command to delete the whole RRSet.
     else:
         zone_name = _get_zone_name(domain, account_number)
         server_id = current_app.config.get("ACME_POWERDNS_SERVERID", "localhost")
-        zone_id = zone_name + "."
-        domain_id = domain + "."
+        zone_id = f"{zone_name}."
+        domain_id = f"{domain}."
         path = f"/api/v1/servers/{server_id}/zones/{zone_id}"
         payload = {
             "rrsets": [
@@ -297,8 +291,7 @@ def _generate_header():
     """
     api_key_name = current_app.config.get("ACME_POWERDNS_APIKEYNAME")
     api_key = current_app.config.get("ACME_POWERDNS_APIKEY")
-    headers = {api_key_name: api_key}
-    return headers
+    return {api_key_name: api_key}
 
 
 def _get_zone_name(domain, account_number):
@@ -312,9 +305,8 @@ def _get_zone_name(domain, account_number):
     zones = get_zones(account_number)
     zone_name = ""
     for z in zones:
-        if domain.endswith(z):
-            if z.count(".") > zone_name.count("."):
-                zone_name = z
+        if domain.endswith(z) and z.count(".") > zone_name.count("."):
+            zone_name = z
     if not zone_name:
         function = sys._getframe().f_code.co_name
         log_data = {
@@ -388,14 +380,13 @@ def _patch_txt_records(domain, account_number, records):
     :param records: List of Record objects
     :return:
     """
-    domain_id = domain + "."
+    domain_id = f"{domain}."
 
     # Create records
-    txt_records = []
-    for record in records:
-        txt_records.append(
-            {'content': record.content, 'disabled': record.disabled}
-        )
+    txt_records = [
+        {'content': record.content, 'disabled': record.disabled}
+        for record in records
+    ]
 
     # Create RRSet
     payload = {
@@ -414,7 +405,7 @@ def _patch_txt_records(domain, account_number, records):
     # Create Txt Records
     server_id = current_app.config.get("ACME_POWERDNS_SERVERID", "localhost")
     zone_name = _get_zone_name(domain, account_number)
-    zone_id = zone_name + "."
+    zone_id = f"{zone_name}."
     path = f"/api/v1/servers/{server_id}/zones/{zone_id}"
     _patch(path, payload)
 

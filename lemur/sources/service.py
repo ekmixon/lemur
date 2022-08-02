@@ -57,8 +57,7 @@ def certificate_update(certificate, source):
 
 
 def sync_update_destination(certificate, source):
-    dest = destination_service.get_by_label(source.label)
-    if dest:
+    if dest := destination_service.get_by_label(source.label):
         for d in certificate.destinations:
             if d.label == source.label:
                 break
@@ -141,9 +140,10 @@ def sync_endpoints(source):
 
         policy = endpoint.pop("policy")
 
-        policy_ciphers = []
-        for nc in policy["ciphers"]:
-            policy_ciphers.append(endpoint_service.get_or_create_cipher(name=nc))
+        policy_ciphers = [
+            endpoint_service.get_or_create_cipher(name=nc)
+            for nc in policy["ciphers"]
+        ]
 
         policy["ciphers"] = policy_ciphers
         endpoint["policy"] = endpoint_service.get_or_create_policy(**policy)
@@ -157,7 +157,7 @@ def sync_endpoints(source):
             new += 1
 
         else:
-            current_app.logger.debug("Endpoint Updated: {}".format(endpoint))
+            current_app.logger.debug(f"Endpoint Updated: {endpoint}")
             endpoint_service.update(exists.id, **endpoint)
             updated += 1
 
@@ -173,8 +173,7 @@ def find_cert(certificate):
         exists = certificate_service.get_by_attributes(conditions)
 
     if not exists and certificate.get("name"):
-        result = certificate_service.get_by_name(certificate["name"])
-        if result:
+        if result := certificate_service.get_by_name(certificate["name"]):
             exists = [result]
 
     if not exists and certificate.get("serial"):
@@ -295,8 +294,7 @@ def delete(source_id):
 
     :param source_id: Lemur assigned ID
     """
-    source = get(source_id)
-    if source:
+    if source := get(source_id):
         # remove association of this source from all valid certificates
         certificates = certificate_service.get_all_valid_certificates_with_source(source_id)
         for certificate in certificates:
@@ -341,9 +339,7 @@ def get_all():
 
 def render(args):
     filt = args.pop("filter")
-    certificate_id = args.pop("certificate_id", None)
-
-    if certificate_id:
+    if certificate_id := args.pop("certificate_id", None):
         query = database.session_query(Source).join(Certificate, Source.certificate)
         query = query.filter(Certificate.id == certificate_id)
     else:
@@ -364,11 +360,10 @@ def add_aws_destination_to_sources(dst):
     We rely on account numbers to avoid duplicates.
     :return: true for success and false for not adding the destination as source
     """
-    # a set of all accounts numbers available as sources
-    src_accounts = set()
     sources = get_all()
-    for src in sources:
-        src_accounts.add(get_plugin_option("accountNumber", src.options))
+    src_accounts = {
+        get_plugin_option("accountNumber", src.options) for src in sources
+    }
 
     # check
     destination_plugin = plugins.get(dst.plugin_name)

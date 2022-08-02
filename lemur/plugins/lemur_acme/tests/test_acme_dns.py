@@ -150,8 +150,7 @@ class TestAcmeDns(unittest.TestCase):
         mock_authz_record = Mock()
         mock_authz_record.body.identifier.value = "test"
         mock_authz.authz.append(mock_authz_record)
-        mock_authz.change_id = []
-        mock_authz.change_id.append("123")
+        mock_authz.change_id = ["123"]
         mock_authz.dns_challenge = []
         dns_challenge = MagicMock()
         dns_challenge["status"] == STATUS_PENDING
@@ -181,8 +180,7 @@ class TestAcmeDns(unittest.TestCase):
         mock_authz_record.body.identifier.value = "test"
         mock_authz.authz = []
         mock_authz.authz.append(mock_authz_record)
-        mock_authz.change_id = []
-        mock_authz.change_id.append("123")
+        mock_authz.change_id = ["123"]
         with self.assertRaises(ValueError):
             self.acme.complete_dns_challenge(mock_acme, mock_authz)
 
@@ -201,10 +199,9 @@ class TestAcmeDns(unittest.TestCase):
         mock_cert_response.body = "123"
         mock_cert_response_full = [mock_cert_response, True]
         mock_acme.poll_and_request_issuance = Mock(return_value=mock_cert_response_full)
-        mock_authz = []
         mock_authz_record = MagicMock()
         mock_authz_record.authz = Mock()
-        mock_authz.append(mock_authz_record)
+        mock_authz = [mock_authz_record]
         mock_acme.fetch_chain = Mock(return_value="mock_chain")
         mock_crypto.dump_certificate = Mock(return_value=b"chain")
         mock_order = Mock()
@@ -222,9 +219,9 @@ class TestAcmeDns(unittest.TestCase):
         mock_authority = Mock()
         mock_authority.id = 2
         mock_authority.options = '[{"name": "mock_name", "value": "mock_value"}, ' \
-                                 '{"name": "store_account", "value": true},' \
-                                 '{"name": "acme_private_key", "value": "{\\"n\\": \\"PwIOkViO\\", \\"kty\\": \\"RSA\\"}"}, ' \
-                                 '{"name": "acme_regr", "value": "{\\"body\\": {}, \\"uri\\": \\"http://test.com\\"}"}]'
+                                     '{"name": "store_account", "value": true},' \
+                                     '{"name": "acme_private_key", "value": "{\\"n\\": \\"PwIOkViO\\", \\"kty\\": \\"RSA\\"}"}, ' \
+                                     '{"name": "acme_regr", "value": "{\\"body\\": {}, \\"uri\\": \\"http://test.com\\"}"}]'
         mock_client = Mock()
         mock_acme.return_value = mock_client
 
@@ -245,7 +242,7 @@ class TestAcmeDns(unittest.TestCase):
         mock_authority = Mock()
         mock_authority.id = 2
         mock_authority.options = '[{"name": "mock_name", "value": "mock_value"}, ' \
-                                 '{"name": "store_account", "value": true}]'
+                                     '{"name": "store_account", "value": true}]'
         mock_client = Mock()
         mock_registration = Mock()
         mock_registration.uri = "http://test.com"
@@ -387,13 +384,12 @@ class TestAcmeDns(unittest.TestCase):
         return_value="test",
     )
     def test_finalize_authorizations(self, mock_complete_dns_challenge):
-        mock_authz = []
         mock_authz_record = MagicMock()
         mock_authz_record.authz = Mock()
         mock_authz_record.change_id = 1
         mock_authz_record.dns_challenge.validation_domain_name = Mock()
         mock_authz_record.dns_challenge.validation = Mock()
-        mock_authz.append(mock_authz_record)
+        mock_authz = [mock_authz_record]
         mock_dns_provider = Mock()
         mock_dns_provider.delete_txt_record = Mock()
 

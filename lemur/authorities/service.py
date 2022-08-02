@@ -214,9 +214,8 @@ def get_authority_role(ca_name, creator=None):
 
     :param ca_name:
     """
-    if creator:
-        if creator.is_admin:
-            return role_service.get_by_name("{0}_admin".format(ca_name))
+    if creator and creator.is_admin:
+        return role_service.get_by_name("{0}_admin".format(ca_name))
     return role_service.get_by_name("{0}_operator".format(ca_name))
 
 
@@ -227,9 +226,7 @@ def render(args):
     :return:
     """
     query = database.session_query(Authority)
-    filt = args.pop("filter")
-
-    if filt:
+    if filt := args.pop("filter"):
         terms = filt.split(";")
         if "active" in filt:
             query = query.filter(Authority.active == truthiness(terms[1]))
@@ -247,13 +244,9 @@ def render(args):
 
     # we make sure that a user can only use an authority they either own are a member of - admins can see all
     if not args["user"].is_admin:
-        authority_ids = []
-        for authority in args["user"].authorities:
-            authority_ids.append(authority.id)
-
+        authority_ids = [authority.id for authority in args["user"].authorities]
         for role in args["user"].roles:
-            for authority in role.authorities:
-                authority_ids.append(authority.id)
+            authority_ids.extend(authority.id for authority in role.authorities)
         query = query.filter(Authority.id.in_(authority_ids))
 
     return database.sort_and_page(query, Authority, args)
